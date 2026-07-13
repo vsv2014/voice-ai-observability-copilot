@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { ghl } from '../ghl/adapter.js';
 import { store } from '../store/store.js';
 import { loadCriteria, criteriaForAgent, persistCriteria } from '../analysis/criteria.js';
+import { validateCriteria } from '../analysis/validate.js';
 import { runAnalysis } from '../analysis/run.js';
 import { accountOverview, agentSummary, useActions } from '../analysis/metrics.js';
 import { getLlm } from '../analysis/llm/index.js';
@@ -65,11 +66,14 @@ api.get('/agents/:id/criteria', wrap(async (req, res) => {
 }));
 
 api.put('/agents/:id/criteria', wrap(async (req, res) => {
+  const result = validateCriteria(req.body?.criteria, req.params.id);
+  if (!result.ok) {
+    return res.status(400).json({ error: 'invalid criteria', details: result.errors });
+  }
   const all = loadCriteria(await ghl.listAgents());
   const others = all.filter((c) => c.agentId !== req.params.id);
-  const updated = (req.body.criteria || []).map((c) => ({ ...c, agentId: req.params.id }));
-  persistCriteria([...others, ...updated]);
-  res.json({ ok: true, count: updated.length });
+  persistCriteria([...others, ...result.criteria]);
+  res.json({ ok: true, count: result.criteria.length });
 }));
 
 // ── Dashboard ──

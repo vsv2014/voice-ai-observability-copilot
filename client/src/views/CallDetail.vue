@@ -1,20 +1,26 @@
 <script setup>
-import { ref, watchEffect, computed } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { api } from '../api.js';
+import { useLoader } from '../lib/useLoader.js';
 import ScoreBadge from '../components/ScoreBadge.vue';
 
 const props = defineProps({ callId: String });
 const call = ref(null);
 const analysis = ref(null);
-const loading = ref(true);
+const { loading, error, run } = useLoader();
 
-watchEffect(async () => {
-  loading.value = true;
-  const res = await api.call(props.callId);
-  call.value = res.call;
-  analysis.value = res.analysis;
-  loading.value = false;
-});
+watch(
+  () => props.callId,
+  async (callId) => {
+    call.value = null;
+    const res = await run(() => api.call(callId));
+    if (res) {
+      call.value = res.call;
+      analysis.value = res.analysis;
+    }
+  },
+  { immediate: true }
+);
 
 // Map turnIndex -> the finding flagged on it (fail/missed only), for highlighting.
 const flagByTurn = computed(() => {
@@ -29,7 +35,11 @@ const fmt = (ms) => `${Math.floor(ms / 1000)}s`;
 </script>
 
 <template>
-  <div v-if="loading" class="loading">Loading call…</div>
+  <div v-if="loading && !call" class="loading">Loading call…</div>
+  <div v-else-if="error && !call" class="empty card">
+    Couldn't load this call: {{ error }}
+    <div style="margin-top:10px"><RouterLink to="/" class="btn">Back to dashboard</RouterLink></div>
+  </div>
   <div v-else-if="call">
     <div class="breadcrumb">
       <RouterLink to="/">Dashboard</RouterLink> /

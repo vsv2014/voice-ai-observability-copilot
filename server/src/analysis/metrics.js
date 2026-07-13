@@ -1,28 +1,32 @@
 import { store } from '../store/store.js';
 import { criteriaForAgent } from './criteria.js';
+import { isOpen, isHighSeverityOpen } from './status.js';
+
+/** Mean of the numeric scores in `analyses`, or null if none are scored. */
+function avgOf(analyses) {
+  const scores = analyses.map((a) => a.score).filter((s) => typeof s === 'number');
+  return scores.length ? Math.round(scores.reduce((s, n) => s + n, 0) / scores.length) : null;
+}
+
+const countFindings = (analyses, pred) =>
+  analyses.reduce((s, a) => s + a.findings.filter(pred).length, 0);
 
 /** Account-level rollup for the dashboard landing view. */
 export function accountOverview(agents, criteria) {
   const perAgent = agents.map((a) => agentSummary(a, criteria));
   const allAnalyses = store.allAnalyses();
-  const scored = allAnalyses.length;
-  const avgScore = scored
-    ? Math.round(allAnalyses.reduce((s, a) => s + a.score, 0) / scored)
-    : null;
-
-  const openIssues = allAnalyses.reduce(
-    (s, a) => s + a.findings.filter((f) => f.status !== 'pass').length,
-    0
-  );
-  const useActions = allAnalyses.reduce(
-    (s, a) => s + a.findings.filter((f) => f.status !== 'pass' && f.severity === 'high').length,
-    0
-  );
 
   return {
     lastRunAt: store.lastRunAt,
-    totals: { agents: agents.length, callsScored: scored, avgScore, openIssues, useActions },
-    agents: perAgent.sort((a, b) => (a.avgScore ?? 100) - (b.avgScore ?? 100)),
+    totals: {
+      agents: agents.length,
+      callsScored: allAnalyses.length,
+      avgScore: avgOf(allAnalyses),
+      openIssues: countFindings(allAnalyses, isOpen),
+      useActions: countFindings(allAnalyses, isHighSeverityOpen),
+    },
+    // Worst (lowest score) first; unscored agents sort to the end.
+    agents: perAgent.sort((a, b) => (a.avgScore ?? Infinity) - (b.avgScore ?? Infinity)),
     recommendations: store.allRecommendations().length,
   };
 }
@@ -32,15 +36,12 @@ export function agentSummary(agent, criteria) {
   const analyses = store.getAnalysesForAgent(agent.id);
   const agentCriteria = criteriaForAgent(agent.id, criteria);
   const scored = analyses.length;
-  const avgScore = scored ? Math.round(analyses.reduce((s, a) => s + a.score, 0) / scored) : null;
 
-  // failure rate per criterion
   const byCriterion = agentCriteria.map((c) => {
-    let fails = 0;
-    for (const a of analyses) {
+    const fails = analyses.filter((a) => {
       const f = a.findings.find((x) => x.criterionId === c.id);
-      if (f && f.status !== 'pass') fails += 1;
-    }
+      return f && isOpen(f);
+    }).length;
     return {
       criterionId: c.id,
       label: c.label,
@@ -51,18 +52,13 @@ export function agentSummary(agent, criteria) {
     };
   });
 
-  const highSeverityOpen = analyses.reduce(
-    (s, a) => s + a.findings.filter((f) => f.status !== 'pass' && f.severity === 'high').length,
-    0
-  );
-
   return {
     id: agent.id,
     name: agent.name,
     goal: agent.goal,
     callsScored: scored,
-    avgScore,
-    highSeverityOpen,
+    avgScore: avgOf(analyses),
+    highSeverityOpen: countFindings(analyses, isHighSeverityOpen),
     topFailures: byCriterion.filter((c) => c.failCount > 0).sort((a, b) => b.failRate - a.failRate),
     recommendations: store.getRecommendations(agent.id).length,
   };
@@ -75,7 +71,7 @@ export function useActions(agentId) {
   const actions = [];
   for (const a of analyses) {
     for (const f of a.findings) {
-      if (f.status === 'pass') continue;
+      if (!isOpen(f)) continue;
       actions.push({
         callId: a.callId,
         agentId: a.agentId,

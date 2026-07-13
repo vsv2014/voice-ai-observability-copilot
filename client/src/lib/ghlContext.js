@@ -17,6 +17,11 @@ export function requestGhlContext(timeoutMs = 1500) {
 
   return new Promise((resolve) => {
     const onMessage = (event) => {
+      // Only trust the parent frame that hosts us — ignore forged responses from
+      // sibling iframes or the page itself. (Origin isn't pinned here because GHL
+      // white-label domains vary; the encrypted blob is still verified server-side
+      // by decrypting with the app Shared Secret.)
+      if (event.source !== window.parent) return;
       const msg = event.data;
       if (msg && msg.message === 'REQUEST_USER_DATA_RESPONSE') {
         window.removeEventListener('message', onMessage);

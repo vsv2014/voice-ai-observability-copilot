@@ -2,25 +2,36 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../api.js';
+import { useLoader } from '../lib/useLoader.js';
 import ScoreBadge from '../components/ScoreBadge.vue';
 
 const router = useRouter();
 const data = ref(null);
 const useActions = ref([]);
-const loading = ref(true);
 const running = ref(false);
+const { loading, error, run } = useLoader();
 
 async function load() {
-  loading.value = true;
-  [data.value, useActions.value] = await Promise.all([api.overview(), api.useActions()]);
-  loading.value = false;
+  const res = await run(async () => {
+    const [overview, actions] = await Promise.all([api.overview(), api.useActions()]);
+    return { overview, actions };
+  });
+  if (res) {
+    data.value = res.overview;
+    useActions.value = res.actions;
+  }
 }
 
 async function rerun() {
   running.value = true;
-  await api.analyze();
-  await load();
-  running.value = false;
+  try {
+    await api.analyze();
+    await load();
+  } catch (e) {
+    error.value = e?.message || String(e);
+  } finally {
+    running.value = false;
+  }
 }
 
 function openAgent(id) {
@@ -31,7 +42,11 @@ onMounted(load);
 </script>
 
 <template>
-  <div v-if="loading" class="loading">Loading observability data…</div>
+  <div v-if="loading && !data" class="loading">Loading observability data…</div>
+  <div v-else-if="error && !data" class="empty card">
+    Couldn't load data: {{ error }}. Is the backend running on :3001?
+    <div style="margin-top:10px"><button class="btn" @click="load">Retry</button></div>
+  </div>
 
   <div v-else-if="data">
     <div class="row" style="margin-bottom:14px">
@@ -42,6 +57,8 @@ onMounted(load);
         {{ running ? 'Analyzing…' : 'Re-run analysis' }}
       </button>
     </div>
+
+    <div v-if="error" class="empty card" style="color:var(--bad); padding:12px; text-align:left">{{ error }}</div>
 
     <!-- KPI tiles -->
     <div class="grid cols-4" style="margin-bottom:8px">

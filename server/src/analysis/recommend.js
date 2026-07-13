@@ -95,19 +95,32 @@ async function llmRecommendations(agent, failures, llm) {
   const items = Array.isArray(parsed) ? parsed : parsed?.recommendations;
   if (!Array.isArray(items)) throw new Error('LLM returned no recommendations array');
 
-  return items.slice(0, 5).map((r, idx) => {
-    const source = failures.find((f) => f.criterion.id === r.criterionId) || failures[idx] || failures[0];
-    return {
-      id: `${agent.id}:rec:${idx}`,
-      agentId: agent.id,
-      target: ['prompt', 'script', 'config'].includes(r.target) ? r.target : 'prompt',
-      title: r.title || `Fix: ${source.criterion.label}`,
-      rationale: r.rationale || '',
-      suggestedChange: r.suggestedChange || '',
-      priority: ['low', 'medium', 'high'].includes(r.priority) ? r.priority : source.criterion.severity,
-      affectedCallIds: [...new Set(source.callIds)],
-    };
-  });
+  // Only keep recs we can tie back to a real failure, so affectedCallIds/title/
+  // priority are always sourced from the criterion the rec is actually about.
+  // A rec whose criterionId matches nothing is dropped rather than misattributed
+  // to an unrelated failure by position.
+  const recs = items
+    .slice(0, 5)
+    .map((r, idx) => {
+      const source = failures.find((f) => f.criterion.id === r.criterionId);
+      if (!source) return null;
+      return {
+        id: `${agent.id}:rec:${idx}`,
+        agentId: agent.id,
+        target: ['prompt', 'script', 'config'].includes(r.target) ? r.target : 'prompt',
+        title: r.title || `Fix: ${source.criterion.label}`,
+        rationale: r.rationale || '',
+        suggestedChange: r.suggestedChange || '',
+        priority: ['low', 'medium', 'high'].includes(r.priority) ? r.priority : source.criterion.severity,
+        affectedCallIds: [...new Set(source.callIds)],
+      };
+    })
+    .filter(Boolean);
+
+  // If the LLM produced nothing we can attribute, fall back to templated recs
+  // rather than returning an empty list for an agent that clearly has failures.
+  if (!recs.length) throw new Error('no LLM recommendation matched a known failure');
+  return recs;
 }
 
 function buildRecPrompt(agent, failures) {

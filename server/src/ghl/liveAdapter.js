@@ -56,7 +56,7 @@ export class LiveAdapter {
   }
 
   async getAgent(agentId) {
-    const raw = await this.#get(`/voice-ai/agents/${agentId}`, { version: V3 });
+    const raw = await this.#get(`/voice-ai/agents/${enc(agentId)}`, { version: V3 });
     return raw ? normalizeAgent(raw.agent || raw) : null;
   }
 
@@ -70,7 +70,7 @@ export class LiveAdapter {
 
   async getCall(callId) {
     // Call logs don't embed transcripts; fetch the log then its transcription.
-    const raw = await this.#get(`/voice-ai/dashboard/call-logs/${callId}`, { version: V3 });
+    const raw = await this.#get(`/voice-ai/dashboard/call-logs/${enc(callId)}`, { version: V3 });
     const call = normalizeCall(raw.callLog || raw);
     call.transcript = await this.getTranscript(call.messageId || callId);
     return call;
@@ -78,12 +78,16 @@ export class LiveAdapter {
 
   async getTranscript(messageId) {
     const raw = await this.#get(
-      `/conversations/locations/${this.locationId}/messages/${messageId}/transcription`,
+      `/conversations/locations/${enc(this.locationId)}/messages/${enc(messageId)}/transcription`,
       { version: V_CONV }
     );
     return normalizeTranscript(messageId, raw);
   }
 }
+
+// Encode path segments so ids containing '/', '#', '?', spaces, etc. can't break
+// the URL path or hit the wrong endpoint.
+const enc = (v) => encodeURIComponent(String(v));
 
 // ── raw GHL payload -> normalized shape ──
 function normalizeAgent(a) {

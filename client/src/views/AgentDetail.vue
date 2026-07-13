@@ -1,24 +1,33 @@
 <script setup>
-import { ref, watchEffect } from 'vue';
+import { ref, watch } from 'vue';
 import { api } from '../api.js';
+import { useLoader } from '../lib/useLoader.js';
 import ScoreBadge from '../components/ScoreBadge.vue';
 
 const props = defineProps({ id: String });
 const detail = ref(null);
 const calls = ref([]);
-const loading = ref(true);
+const { loading, error, run } = useLoader();
 
-watchEffect(async () => {
-  loading.value = true;
-  [detail.value, calls.value] = await Promise.all([api.agent(props.id), api.agentCalls(props.id)]);
-  loading.value = false;
-});
+watch(
+  () => props.id,
+  async (id) => {
+    detail.value = null;
+    const res = await run(() => Promise.all([api.agent(id), api.agentCalls(id)]));
+    if (res) [detail.value, calls.value] = res;
+  },
+  { immediate: true }
+);
 
 const barColor = (rate) => (rate >= 50 ? 'var(--bad)' : rate >= 20 ? 'var(--warn)' : 'var(--good)');
 </script>
 
 <template>
-  <div v-if="loading" class="loading">Loading agent…</div>
+  <div v-if="loading && !detail" class="loading">Loading agent…</div>
+  <div v-else-if="error && !detail" class="empty card">
+    Couldn't load this agent: {{ error }}
+    <div style="margin-top:10px"><RouterLink to="/" class="btn">Back to dashboard</RouterLink></div>
+  </div>
   <div v-else-if="detail">
     <div class="breadcrumb"><RouterLink to="/">Dashboard</RouterLink> / {{ detail.agent.name }}</div>
 

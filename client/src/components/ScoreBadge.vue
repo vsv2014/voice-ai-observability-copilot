@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-const props = defineProps({ score: { type: [Number, null], default: null } });
+const props = defineProps({ score: { type: Number, default: null } });
 const cls = computed(() => {
   if (props.score == null) return 'muted';
   if (props.score >= 80) return 'good';

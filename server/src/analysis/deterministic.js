@@ -16,17 +16,62 @@
  * @property {string} explanation
  */
 
-const matches = (text, keywords) => {
+// Negation cues that flip the meaning of a nearby keyword ("can't guarantee",
+// "not sure"). We scan a few tokens before the match.
+const NEGATORS = new Set([
+  'not', 'no', 'never', 'cannot', 'without', 'wont', 'dont', 'cant',
+  "won't", "don't", "can't", "cannot", "doesn't", "didn't", "isn't",
+  "aren't", "wouldn't", "shouldn't",
+]);
+
+/**
+ * Find `keyword` in `text` as a whole token (not embedded in a larger word, so
+ * "yes" no longer matches "yesterday"). Returns the match index or -1.
+ */
+function findKeyword(text, keyword) {
+  const isAlnum = (ch) => ch >= 'a' && ch <= 'z' ? true : ch >= '0' && ch <= '9';
+  let from = 0;
+  while (from <= text.length) {
+    const idx = text.indexOf(keyword, from);
+    if (idx === -1) return -1;
+    const before = idx === 0 ? '' : text[idx - 1];
+    const after = idx + keyword.length >= text.length ? '' : text[idx + keyword.length];
+    // A boundary holds if the adjacent char isn't alphanumeric, OR the keyword's
+    // own edge char isn't alphanumeric (e.g. "100%").
+    const okBefore = !isAlnum(before) || !isAlnum(keyword[0]);
+    const okAfter = !isAlnum(after) || !isAlnum(keyword[keyword.length - 1]);
+    if (okBefore && okAfter) return idx;
+    from = idx + 1;
+  }
+  return -1;
+}
+
+/** True if a negation cue appears within the ~4 tokens preceding `idx`. */
+function negatedBefore(text, idx) {
+  const preceding = text.slice(0, idx).split(/[^a-z']+/).filter(Boolean).slice(-4);
+  return preceding.some((w) => NEGATORS.has(w) || w.endsWith("n't"));
+}
+
+/**
+ * Look for any keyword in `text` as a whole, non-negated token.
+ * @returns {{ index:number }|null}
+ */
+function matchKeyword(text, keywords) {
   const t = (text || '').toLowerCase();
-  return (keywords || []).some((k) => t.includes(k.toLowerCase()));
-};
+  for (const raw of keywords || []) {
+    const k = raw.toLowerCase();
+    const idx = findKeyword(t, k);
+    if (idx !== -1 && !negatedBefore(t, idx)) return { index: idx };
+  }
+  return null;
+}
 
 /** Evaluate a single criterion against a transcript -> Finding. */
 export function evaluateCriterion(call, transcript, criterion) {
   const turns = transcript?.turns || [];
   const agentTurns = turns.map((t, i) => ({ ...t, i })).filter((t) => t.role === 'agent');
   const customerTurns = turns.map((t, i) => ({ ...t, i })).filter((t) => t.role === 'customer');
-  const { detector } = criterion;
+  const detector = criterion.detector || {};
 
   const base = {
     callId: call.id,
@@ -39,31 +84,34 @@ export function evaluateCriterion(call, transcript, criterion) {
 
   switch (detector.kind) {
     case 'agent_says': {
-      const hit = agentTurns.find((t) => matches(t.text, detector.keywords));
+      const hit = agentTurns.find((t) => matchKeyword(t.text, detector.keywords));
       return hit
         ? { ...base, status: 'pass', turnIndex: hit.i, evidence: hit.text, explanation: 'Required step present.' }
         : { ...base, status: 'fail', explanation: 'Agent never performed this required step.' };
     }
     case 'agent_avoids': {
-      const hit = agentTurns.find((t) => matches(t.text, detector.keywords));
+      // A negated mention ("I can't guarantee…") is compliant, so matchKeyword
+      // (which ignores negated hits) correctly does NOT flag it.
+      const hit = agentTurns.find((t) => matchKeyword(t.text, detector.keywords));
       return hit
         ? { ...base, status: 'fail', turnIndex: hit.i, evidence: hit.text, explanation: 'Agent used compliance-risky language.' }
         : { ...base, status: 'pass', explanation: 'No risky language detected.' };
     }
     case 'question_asked': {
-      const hit = agentTurns.find((t) => t.text.includes('?') && matches(t.text, detector.keywords));
+      const hit = agentTurns.find((t) => (t.text || '').includes('?') && matchKeyword(t.text, detector.keywords));
       return hit
         ? { ...base, status: 'pass', turnIndex: hit.i, evidence: hit.text, explanation: 'Qualifying question asked.' }
         : { ...base, status: 'missed', explanation: 'No qualifying question was asked — missed opportunity.' };
     }
     case 'customer_confirms': {
-      const hit = customerTurns.find((t) => matches(t.text, detector.keywords));
+      // Ignores negated hits, so "I'm not sure" no longer counts as confirming.
+      const hit = customerTurns.find((t) => matchKeyword(t.text, detector.keywords));
       return hit
         ? { ...base, status: 'pass', turnIndex: hit.i, evidence: hit.text, explanation: 'Customer confirmed — goal reached.' }
         : { ...base, status: 'missed', explanation: 'Customer never confirmed — goal not reached.' };
     }
     case 'outcome_keyword': {
-      const hit = turns.map((t, i) => ({ ...t, i })).find((t) => matches(t.text, detector.keywords));
+      const hit = turns.map((t, i) => ({ ...t, i })).find((t) => matchKeyword(t.text, detector.keywords));
       return hit
         ? { ...base, status: 'pass', turnIndex: hit.i, evidence: hit.text, explanation: 'Desired outcome detected.' }
         : { ...base, status: 'missed', explanation: 'Desired outcome not detected.' };
@@ -73,7 +121,11 @@ export function evaluateCriterion(call, transcript, criterion) {
   }
 }
 
-/** Score = weighted fraction of criteria passed, 0..100. */
+/**
+ * Score = weighted fraction of criteria passed, 0..100.
+ * Returns null (not 100) when there is nothing scorable, so an agent with no
+ * working criteria reads as "not scored" rather than a perfect performer.
+ */
 export function scoreCall(findings, criteria) {
   const byId = new Map(criteria.map((c) => [c.id, c]));
   let earned = 0;
@@ -84,7 +136,7 @@ export function scoreCall(findings, criteria) {
     total += c.weight;
     if (f.status === 'pass') earned += c.weight;
   }
-  return total ? Math.round((earned / total) * 100) : 100;
+  return total > 0 ? Math.round((earned / total) * 100) : null;
 }
 
 /**
