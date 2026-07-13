@@ -1,0 +1,10 @@
+{
+  "callId": "call_r2",
+  "turns": [
+    { "role": "agent", "text": "Hello, Summit Realty, how can I help?", "startMs": 0, "endMs": 2400 },
+    { "role": "customer", "text": "I saw a listing on Oak Street I liked.", "startMs": 2600, "endMs": 5200 },
+    { "role": "agent", "text": "Great choice! Would you like to book a viewing?", "startMs": 5400, "endMs": 8200 },
+    { "role": "customer", "text": "Sure, sounds good.", "startMs": 8400, "endMs": 9800 },
+    { "role": "agent", "text": "Booked you for Saturday at noon.", "startMs": 10000, "endMs": 12000 }
+  ]
+}

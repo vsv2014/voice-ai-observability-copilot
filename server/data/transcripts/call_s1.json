@@ -1,0 +1,12 @@
+{
+  "callId": "call_s1",
+  "turns": [
+    { "role": "agent", "text": "Hi, this is GreenLeaf Solar following up on your quote request.", "startMs": 0, "endMs": 3400 },
+    { "role": "customer", "text": "Yeah, is it actually worth it?", "startMs": 3600, "endMs": 5800 },
+    { "role": "agent", "text": "Absolutely — I guarantee you'll save at least 50% on your electric bill, no risk.", "startMs": 6000, "endMs": 10500 },
+    { "role": "customer", "text": "Wow, okay.", "startMs": 10700, "endMs": 11800 },
+    { "role": "agent", "text": "What's your average monthly bill, and when would be a good time for a consultation?", "startMs": 12000, "endMs": 16000 },
+    { "role": "customer", "text": "Sure, let's book a consultation.", "startMs": 16200, "endMs": 18200 },
+    { "role": "agent", "text": "Great, I'll schedule that for you.", "startMs": 18400, "endMs": 20200 }
+  ]
+}

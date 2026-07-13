@@ -1,0 +1,10 @@
+{
+  "callId": "call_d2",
+  "turns": [
+    { "role": "agent", "text": "Thanks for calling Riverside Dental, this is the front desk.", "startMs": 0, "endMs": 3000 },
+    { "role": "customer", "text": "I wanted to ask about getting a filling.", "startMs": 3200, "endMs": 5800 },
+    { "role": "agent", "text": "Sure, I can schedule an appointment for you. What day works best?", "startMs": 6000, "endMs": 9500 },
+    { "role": "customer", "text": "Hmm, let me check my calendar and call back later.", "startMs": 9700, "endMs": 12500 },
+    { "role": "agent", "text": "No problem at all, talk soon.", "startMs": 12700, "endMs": 14200 }
+  ]
+}

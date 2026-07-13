@@ -1,0 +1,12 @@
+[
+  { "id": "call_d1", "agentId": "agent_dental_booking", "contactId": "ct_1001", "direction": "inbound", "startedAt": "2026-07-08T14:02:11Z", "durationSec": 96, "status": "completed", "recordingUrl": "https://recordings.example/call_d1.mp3" },
+  { "id": "call_d2", "agentId": "agent_dental_booking", "contactId": "ct_1002", "direction": "inbound", "startedAt": "2026-07-08T15:20:40Z", "durationSec": 74, "status": "completed", "recordingUrl": "https://recordings.example/call_d2.mp3" },
+  { "id": "call_d3", "agentId": "agent_dental_booking", "contactId": "ct_1003", "direction": "inbound", "startedAt": "2026-07-09T09:11:03Z", "durationSec": 58, "status": "completed", "recordingUrl": "https://recordings.example/call_d3.mp3" },
+
+  { "id": "call_r1", "agentId": "agent_realty_qualifier", "contactId": "ct_2001", "direction": "inbound", "startedAt": "2026-07-08T17:45:09Z", "durationSec": 132, "status": "completed", "recordingUrl": "https://recordings.example/call_r1.mp3" },
+  { "id": "call_r2", "agentId": "agent_realty_qualifier", "contactId": "ct_2002", "direction": "inbound", "startedAt": "2026-07-09T11:02:55Z", "durationSec": 88, "status": "completed", "recordingUrl": "https://recordings.example/call_r2.mp3" },
+  { "id": "call_r3", "agentId": "agent_realty_qualifier", "contactId": "ct_2003", "direction": "inbound", "startedAt": "2026-07-09T13:30:22Z", "durationSec": 61, "status": "completed", "recordingUrl": "https://recordings.example/call_r3.mp3" },
+
+  { "id": "call_s1", "agentId": "agent_solar_followup", "contactId": "ct_3001", "direction": "outbound", "startedAt": "2026-07-08T18:10:00Z", "durationSec": 121, "status": "completed", "recordingUrl": "https://recordings.example/call_s1.mp3" },
+  { "id": "call_s2", "agentId": "agent_solar_followup", "contactId": "ct_3002", "direction": "outbound", "startedAt": "2026-07-09T16:44:31Z", "durationSec": 109, "status": "completed", "recordingUrl": "https://recordings.example/call_s2.mp3" }
+]

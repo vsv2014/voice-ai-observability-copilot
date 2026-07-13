@@ -1,0 +1,17 @@
+{
+  "name": "voice-ai-observability-server",
+  "version": "0.1.0",
+  "description": "Backend for the HighLevel Voice AI Observability Copilot",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

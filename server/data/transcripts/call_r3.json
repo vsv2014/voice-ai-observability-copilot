@@ -1,0 +1,9 @@
+{
+  "callId": "call_r3",
+  "turns": [
+    { "role": "agent", "text": "Hi, Summit Realty.", "startMs": 0, "endMs": 1600 },
+    { "role": "customer", "text": "Just wondering if prices are dropping around here.", "startMs": 1800, "endMs": 4600 },
+    { "role": "agent", "text": "They vary a lot by neighborhood, it really depends.", "startMs": 4800, "endMs": 8000 },
+    { "role": "customer", "text": "Alright, thanks.", "startMs": 8200, "endMs": 9400 }
+  ]
+}

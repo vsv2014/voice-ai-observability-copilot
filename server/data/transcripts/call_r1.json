@@ -1,0 +1,11 @@
+{
+  "callId": "call_r1",
+  "turns": [
+    { "role": "agent", "text": "Hi there, thanks for calling Summit Realty!", "startMs": 0, "endMs": 2600 },
+    { "role": "customer", "text": "I'm looking to buy a house.", "startMs": 2800, "endMs": 4600 },
+    { "role": "agent", "text": "Exciting! What's your budget range, and what timeline are you working with?", "startMs": 4800, "endMs": 9000 },
+    { "role": "customer", "text": "Around 400k, and hoping to move within three months.", "startMs": 9200, "endMs": 12500 },
+    { "role": "agent", "text": "Perfect. Would you like to schedule a viewing this weekend?", "startMs": 12700, "endMs": 16000 },
+    { "role": "customer", "text": "Yes, that works.", "startMs": 16200, "endMs": 17600 }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "callId": "call_s2",
+  "turns": [
+    { "role": "agent", "text": "Hi, this is GreenLeaf Solar, thanks for requesting a quote.", "startMs": 0, "endMs": 3200 },
+    { "role": "customer", "text": "Hi, yes I did.", "startMs": 3400, "endMs": 4800 },
+    { "role": "agent", "text": "What's your monthly bill, and when did you start looking into solar?", "startMs": 5000, "endMs": 8800 },
+    { "role": "customer", "text": "About $180 a month, started looking recently.", "startMs": 9000, "endMs": 12000 },
+    { "role": "agent", "text": "Thanks. I won't quote specific numbers, but a specialist can walk you through it. Would you like to schedule a consultation?", "startMs": 12200, "endMs": 18000 },
+    { "role": "customer", "text": "Yes, that works.", "startMs": 18200, "endMs": 19600 },
+    { "role": "agent", "text": "Perfect, booking you in now.", "startMs": 19800, "endMs": 21400 }
+  ]
+}

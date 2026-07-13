@@ -1,0 +1,10 @@
+{
+  "callId": "call_d1",
+  "turns": [
+    { "role": "agent", "text": "Thanks for calling Riverside Dental, how can I help you today?", "startMs": 0, "endMs": 3200 },
+    { "role": "customer", "text": "Hi, I think I need a cleaning.", "startMs": 3500, "endMs": 6000 },
+    { "role": "agent", "text": "I'd be happy to help with that. Would you like to book an appointment? I have availability this week.", "startMs": 6200, "endMs": 11000 },
+    { "role": "customer", "text": "Yes, that works for me.", "startMs": 11200, "endMs": 12800 },
+    { "role": "agent", "text": "Great, I've booked you for Thursday at 2pm. See you then!", "startMs": 13000, "endMs": 16500 }
+  ]
+}

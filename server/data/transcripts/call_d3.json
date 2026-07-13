@@ -1,0 +1,9 @@
+{
+  "callId": "call_d3",
+  "turns": [
+    { "role": "agent", "text": "Hello, Riverside Dental.", "startMs": 0, "endMs": 1800 },
+    { "role": "customer", "text": "Do you do teeth whitening?", "startMs": 2000, "endMs": 4000 },
+    { "role": "agent", "text": "Yes we do, it's one of our popular services and results look great.", "startMs": 4200, "endMs": 8000 },
+    { "role": "customer", "text": "Got it, thanks, goodbye.", "startMs": 8200, "endMs": 9800 }
+  ]
+}
