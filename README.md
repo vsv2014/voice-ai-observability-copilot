@@ -120,8 +120,11 @@ Nothing is faked silently: the app footer and this table state exactly what's li
    guarantees" guardrail). Criteria are weighted and editable via the API.
 2. **Scoring** (`server/src/analysis/deterministic.js`) — each criterion has a
    transparent detector (required step present, forbidden phrase, question asked,
-   customer confirmation). Findings are `pass | fail | missed` with severity, the
-   exact turn, and an evidence quote. Score = weighted % of criteria passed.
+   customer confirmation). Keyword matching is **word-boundary + negation aware**,
+   so "not sure" isn't read as a confirmation and "I can't guarantee…" isn't flagged
+   as a compliance violation. Findings are `pass | fail | missed` with severity, the
+   exact turn, and an evidence quote. Score = weighted % of criteria passed, or
+   `null` ("not scored") when an agent has no scorable criteria.
 3. **Recommendations** (`server/src/analysis/recommend.js`) — failures are
    aggregated per agent; the engine proposes a concrete prompt/script edit and
    lists **which calls it would have fixed** (the flywheel payoff). LLM-authored
@@ -140,9 +143,11 @@ Nothing is faked silently: the app footer and this table state exactly what's li
 - **Engineering** — the two external risks (GHL access, paid LLM keys) are isolated
   behind adapter interfaces so neither can block a working, demoable build.
 - **QA** — the mock dataset is authored with known good/fail/missed/compliance
-  cases; the deterministic analyzer is verifiable against them. `server/src/smoke.js`
-  runs the whole pipeline headless (`node src/smoke.js`) and prints scores,
-  Use Actions, and recommendations for a fast regression check.
+  cases; the deterministic analyzer is verifiable against them. Unit tests
+  (`cd server && npm test`, 9 tests in `server/test/`) cover the detector edge cases
+  — negation, word boundaries, weighted scoring, the null-score sentinel. And
+  `server/src/smoke.js` runs the whole pipeline headless (`node src/smoke.js`),
+  printing scores, Use Actions, and recommendations for a fast end-to-end check.
 
 ---
 
@@ -151,11 +156,15 @@ Nothing is faked silently: the app footer and this table state exactly what's li
 ```
 server/                      Node/Express backend
   src/ghl/                   Adapter interface + MockAdapter + LiveAdapter (real endpoints)
-  src/analysis/              criteria · deterministic scorer · LLM providers · recommendations · metrics
+  src/analysis/              criteria · deterministic scorer · recommend · metrics
+                             validate (criteria input) · status (shared predicates) · llm/ (providers)
   src/routes/api.js          REST API
+  src/smoke.js               headless end-to-end pipeline check
   data/                      mock agents, calls, transcripts (GHL-shaped)
+  test/                      unit tests (detector edge cases)
 client/                      Vue 3 + Vite dashboard (embeddable in GHL)
   src/views/                 Overview · AgentDetail · CallDetail
   src/lib/ghlContext.js      GHL Custom Page SSO handshake
+  src/lib/useLoader.js       async loader: request-race guard + error state
 docs/                        ARCHITECTURE.md · GHL-API.md
 ```

@@ -120,7 +120,8 @@ the "flywheel" logic don't care which produced them.
 - **Engineering** — adapter + engine interfaces isolate the two risky externalities (GHL
   API access, paid LLM keys) so neither blocks a working build.
 - **QA** — mock dataset is authored to include known-good, known-bad, and edge cases;
-  deterministic analyzer is unit-testable with fixed expected findings (no LLM flakiness).
+  deterministic analyzer is unit-tested (`server/test/`, 9 tests) with fixed expected
+  findings (no LLM flakiness); `server/src/smoke.js` exercises the full pipeline headless.
 
 ## 6. Mocked vs. real (honesty matrix — finalized in README)
 
@@ -133,4 +134,5 @@ the "flywheel" logic don't care which produced them.
 | LLM analysis | Real when a free key is set | swap model/provider |
 | Embedding in GHL | Custom Page iframe + SSO handshake stub | register marketplace app |
 
-*(§6 field-level shapes and endpoint paths are filled in from the API grounding pass.)*
+*Field-level payload shapes, endpoint paths, `Version` headers, scopes, and rate limits
+from the API grounding pass are documented in [`GHL-API.md`](GHL-API.md).*
