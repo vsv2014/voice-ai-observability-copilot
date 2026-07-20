@@ -1,0 +1,19 @@
+# One-service deploy for Render (https://render.com).
+# Builds the Vue frontend and serves it from the Express backend, so a single
+# URL hosts both the dashboard and the /api. Set GROQ_API_KEY in the dashboard.
+services:
+  - type: web
+    name: voice-ai-observability-copilot
+    runtime: node
+    plan: free
+    buildCommand: "cd client && npm install && npm run build && cd ../server && npm install"
+    startCommand: "cd server && node src/index.js"
+    envVars:
+      - key: GHL_MODE
+        value: mock
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false   # set this secret in the Render dashboard
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
