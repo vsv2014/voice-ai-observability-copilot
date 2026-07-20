@@ -1,0 +1,9 @@
+# Never copy local deps, build output, or secrets into the image
+**/node_modules
+**/dist
+**/.vite
+.git
+.env
+server/.env
+client/.env
+*.log
