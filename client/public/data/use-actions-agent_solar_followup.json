@@ -1,0 +1,1 @@
+[{"callId":"call_s1","agentId":"agent_solar_followup","criterionId":"agent_solar_followup:no-guarantees","label":"Avoids compliance-risky guarantees","status":"fail","severity":"high","turnIndex":2,"evidence":"Absolutely — I guarantee you'll save at least 50% on your electric bill, no risk.","explanation":"Agent used compliance-risky language."}]
