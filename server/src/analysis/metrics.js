@@ -1,6 +1,7 @@
 import { store } from '../store/store.js';
 import { criteriaForAgent } from './criteria.js';
-import { isOpen, isHighSeverityOpen } from './status.js';
+import { isOpen, isCriticalOpen, isEscalatableOpen } from './status.js';
+import { rankOf } from './severity.js';
 
 /** Mean of the numeric scores in `analyses`, or null if none are scored. */
 function avgOf(analyses) {
@@ -23,7 +24,10 @@ export function accountOverview(agents, criteria) {
       callsScored: allAnalyses.length,
       avgScore: avgOf(allAnalyses),
       openIssues: countFindings(allAnalyses, isOpen),
-      useActions: countFindings(allAnalyses, isHighSeverityOpen),
+      useActions: countFindings(allAnalyses, isEscalatableOpen),
+      // Surfaced separately: compliance violations must be visible as a raw count,
+      // never only as an ingredient in an average.
+      criticalViolations: countFindings(allAnalyses, isCriticalOpen),
     },
     // Worst (lowest score) first; unscored agents sort to the end.
     agents: perAgent.sort((a, b) => (a.avgScore ?? Infinity) - (b.avgScore ?? Infinity)),
@@ -58,7 +62,8 @@ export function agentSummary(agent, criteria) {
     goal: agent.goal,
     callsScored: scored,
     avgScore: avgOf(analyses),
-    highSeverityOpen: countFindings(analyses, isHighSeverityOpen),
+    highSeverityOpen: countFindings(analyses, isEscalatableOpen),
+    criticalViolations: countFindings(analyses, isCriticalOpen),
     topFailures: byCriterion.filter((c) => c.failCount > 0).sort((a, b) => b.failRate - a.failRate),
     recommendations: store.getRecommendations(agent.id).length,
   };
@@ -67,7 +72,6 @@ export function agentSummary(agent, criteria) {
 /** "Use Actions": specific call segments that need a human, ranked by severity. */
 export function useActions(agentId) {
   const analyses = agentId ? store.getAnalysesForAgent(agentId) : store.allAnalyses();
-  const rank = { high: 0, medium: 1, low: 2 };
   const actions = [];
   for (const a of analyses) {
     for (const f of a.findings) {
@@ -85,5 +89,6 @@ export function useActions(agentId) {
       });
     }
   }
-  return actions.sort((x, y) => rank[x.severity] - rank[y.severity]);
+  // Most urgent first: critical → high → medium → low (unknown severities last).
+  return actions.sort((x, y) => rankOf(x.severity) - rankOf(y.severity));
 }

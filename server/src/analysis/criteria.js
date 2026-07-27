@@ -88,7 +88,9 @@ export function defaultCriteriaFor(agent) {
       type: 'compliance',
       detector: { kind: 'agent_avoids', keywords: ['guarantee', 'guaranteed', '100%', 'promise you', 'no risk'] },
       weight: 0.15,
-      severity: 'high',
+      // CRITICAL, not high: a compliance guarantee is a liability, not a performance
+      // miss. This severity gates the call score (see ./severity.js).
+      severity: 'critical',
     },
   ];
 

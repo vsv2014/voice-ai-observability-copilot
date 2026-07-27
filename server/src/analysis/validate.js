@@ -1,6 +1,6 @@
 import { DETECTOR_KINDS } from './criteria.js';
+import { SEVERITIES } from './severity.js';
 
-const SEVERITIES = ['low', 'medium', 'high'];
 const kinds = new Set(DETECTOR_KINDS);
 
 /**

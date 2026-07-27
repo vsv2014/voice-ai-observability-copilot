@@ -61,7 +61,7 @@ onMounted(load);
     <div v-if="error" class="empty card" style="color:var(--bad); padding:12px; text-align:left">{{ error }}</div>
 
     <!-- KPI tiles -->
-    <div class="grid cols-4" style="margin-bottom:8px">
+    <div class="grid cols-5" style="margin-bottom:8px">
       <div class="card stat">
         <div class="label">Avg call score</div>
         <div class="value"><ScoreBadge :score="data.totals.avgScore" /></div>
@@ -78,9 +78,14 @@ onMounted(load);
         <div class="sub">failed / missed criteria</div>
       </div>
       <div class="card stat">
+        <div class="label">Compliance violations</div>
+        <div class="value" style="color:var(--bad)">{{ data.totals.criticalViolations ?? 0 }}</div>
+        <div class="sub">critical — never averaged away</div>
+      </div>
+      <div class="card stat">
         <div class="label">Use actions</div>
-        <div class="value" style="color:var(--bad)">{{ data.totals.useActions }}</div>
-        <div class="sub">high-severity, need a human</div>
+        <div class="value" style="color:var(--warn)">{{ data.totals.useActions }}</div>
+        <div class="sub">critical + high, need a human</div>
       </div>
     </div>
 

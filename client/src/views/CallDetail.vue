@@ -81,6 +81,16 @@ const fmt = (ms) => `${Math.floor(ms / 1000)}s`;
           <span class="spacer"></span>
           <ScoreBadge :score="analysis?.score ?? null" />
         </div>
+
+        <!-- Explain the severity gate, or the score looks inexplicably low next to
+             a mostly-passing list. -->
+        <div v-if="analysis?.gatedBy" class="gate-note">
+          <span class="tag" :class="analysis.gatedBy">{{ analysis.gatedBy }}</span>
+          Score capped at <strong>{{ analysis.scoreCap }}</strong>
+          (weighted average was {{ analysis.rawScore }}).
+          A {{ analysis.gatedBy }}-severity failure can't be averaged away.
+        </div>
+
         <div v-if="analysis">
           <div v-for="f in analysis.findings" :key="f.criterionId" class="row" style="padding:9px 0; border-bottom:1px solid var(--border)">
             <span class="tag" :class="f.status">{{ f.status }}</span>

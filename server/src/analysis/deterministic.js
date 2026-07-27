@@ -16,6 +16,8 @@
  * @property {string} explanation
  */
 
+import { SCORE_CAPS, isGatingSeverity } from './severity.js';
+
 // ── Keyword matching ────────────────────────────────────────────────────
 // Detectors work by looking for keywords in a turn's text. Two guards keep the
 // matches honest (both added after a code review caught false positives):
@@ -131,33 +133,73 @@ export function evaluateCriterion(call, transcript, criterion) {
 }
 
 /**
- * Score = weighted fraction of criteria passed, 0..100.
- * Returns null (not 100) when there is nothing scorable, so an agent with no
- * working criteria reads as "not scored" rather than a perfect performer.
+ * Full scoring breakdown for one call.
+ *
+ * `rawScore` is the weighted average. `score` is that average AFTER severity gating.
+ * We keep both because the average is still useful for trends, but it must never be the
+ * number a human reads as "this agent is fine" — a single critical compliance failure has
+ * to dominate it. See ./severity.js for why critical and high cap at different ceilings.
+ *
+ * @returns {{
+ *   rawScore: number|null, score: number|null, cap: number|null,
+ *   gatedBy: 'critical'|'high'|null, violations: {critical:number, high:number}
+ * }}
  */
-export function scoreCall(findings, criteria) {
+export function scoreBreakdown(findings, criteria) {
   const byId = new Map(criteria.map((c) => [c.id, c]));
+  const violations = { critical: 0, high: 0 };
   let earned = 0;
   let total = 0;
+
   for (const f of findings) {
     const c = byId.get(f.criterionId);
-    if (!c) continue;
+    if (!c) continue;                       // a finding with no matching criterion is unscorable
     total += c.weight;
-    if (f.status === 'pass') earned += c.weight;
+    if (f.status === 'pass') {
+      earned += c.weight;
+    } else if (isGatingSeverity(c.severity)) {
+      violations[c.severity] += 1;
+    }
   }
-  return total > 0 ? Math.round((earned / total) * 100) : null;
+
+  if (total <= 0) {
+    // Nothing scorable → "not scored", NOT a perfect 100.
+    return { rawScore: null, score: null, cap: null, gatedBy: null, violations };
+  }
+
+  const rawScore = Math.round((earned / total) * 100);
+
+  // Critical outranks high: the strictest applicable cap wins.
+  const gatedBy = violations.critical > 0 ? 'critical' : violations.high > 0 ? 'high' : null;
+  const cap = gatedBy ? SCORE_CAPS[gatedBy] : null;
+  const score = cap === null ? rawScore : Math.min(rawScore, cap);
+
+  return { rawScore, score, cap, gatedBy, violations };
+}
+
+/**
+ * Score = weighted fraction of criteria passed, 0..100, after severity gating.
+ * Returns null when there is nothing scorable.
+ */
+export function scoreCall(findings, criteria) {
+  return scoreBreakdown(findings, criteria).score;
 }
 
 /**
  * Analyze one call against its criteria (deterministic).
- * @returns {{callId, agentId, score, findings: Finding[], engine: string, scoredAt: string}}
  */
 export function analyzeCallDeterministic(call, transcript, criteria) {
   const findings = criteria.map((c) => evaluateCriterion(call, transcript, c));
+  const { rawScore, score, cap, gatedBy, violations } = scoreBreakdown(findings, criteria);
+
   return {
     callId: call.id,
     agentId: call.agentId,
-    score: scoreCall(findings, criteria),
+    score,                    // gated — what the UI shows
+    rawScore,                 // ungated weighted average — kept for trends/debugging
+    scoreCap: cap,            // the ceiling that was applied, if any
+    gatedBy,                  // which severity triggered the gate
+    violations,               // { critical, high } counts
     findings,
     engine: 'deterministic',
     scoredAt: new Date().toISOString(),
