@@ -16,6 +16,15 @@
  * @property {string} explanation
  */
 
+// ── Keyword matching ────────────────────────────────────────────────────
+// Detectors work by looking for keywords in a turn's text. Two guards keep the
+// matches honest (both added after a code review caught false positives):
+//   1. WHOLE-WORD only  — "yes" must not match inside "yesterday"      (findKeyword)
+//   2. NEGATION-AWARE   — "I can't guarantee…" must NOT count as a guarantee,
+//                         "I'm not sure" must NOT count as a confirmation (negatedBefore)
+// matchKeyword() combines both and is what every detector below calls.
+// ─────────────────────────────────────────────────────────────────────────
+
 // Negation cues that flip the meaning of a nearby keyword ("can't guarantee",
 // "not sure"). We scan a few tokens before the match.
 const NEGATORS = new Set([

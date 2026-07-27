@@ -1,21 +1,14 @@
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CRITERIA_FILE = join(__dirname, '..', '..', 'data', 'criteria.json');
 
-// Cache the parsed file, keyed by mtime, so we don't re-read + JSON.parse on
-// every request. Invalidated automatically when the file changes on disk.
-let cache = { mtimeMs: -1, data: null };
-
+// Read the saved criteria from disk (empty list if the file doesn't exist yet).
 function readStored() {
   if (!existsSync(CRITERIA_FILE)) return [];
-  const { mtimeMs } = statSync(CRITERIA_FILE);
-  if (cache.data && cache.mtimeMs === mtimeMs) return cache.data;
-  const data = JSON.parse(readFileSync(CRITERIA_FILE, 'utf8'));
-  cache = { mtimeMs, data };
-  return data;
+  return JSON.parse(readFileSync(CRITERIA_FILE, 'utf8'));
 }
 
 /**
@@ -70,8 +63,6 @@ export function criteriaForAgent(agentId, all) {
 
 export function persistCriteria(all) {
   writeFileSync(CRITERIA_FILE, JSON.stringify(all, null, 2));
-  // Refresh the cache so the next read reflects the write immediately.
-  cache = { mtimeMs: statSync(CRITERIA_FILE).mtimeMs, data: all };
 }
 
 /**

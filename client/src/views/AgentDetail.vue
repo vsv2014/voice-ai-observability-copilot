@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { api } from '../api.js';
 import { useLoader } from '../lib/useLoader.js';
 import ScoreBadge from '../components/ScoreBadge.vue';
@@ -18,6 +18,20 @@ watch(
   },
   { immediate: true }
 );
+
+// The KPI list shown on the page = every criterion for this agent.
+// The API only returns the FAILING ones (with a failRate); we append the
+// passing ones at 0% so the list is complete. (Kept here as a named computed
+// instead of inline in the template so it's easy to read.)
+const criteriaRows = computed(() => {
+  if (!detail.value) return [];
+  const failing = detail.value.summary.topFailures;
+  const failingIds = new Set(failing.map((f) => f.criterionId));
+  const passing = detail.value.criteria
+    .filter((c) => !failingIds.has(c.id))
+    .map((c) => ({ criterionId: c.id, label: c.label, type: c.type, severity: c.severity, failRate: 0 }));
+  return [...failing, ...passing];
+});
 
 const barColor = (rate) => (rate >= 50 ? 'var(--bad)' : rate >= 20 ? 'var(--warn)' : 'var(--good)');
 </script>
@@ -55,10 +69,7 @@ const barColor = (rate) => (rate >= 50 ? 'var(--bad)' : rate >= 20 ? 'var(--warn
     <!-- Criteria / KPI performance -->
     <h2 class="section">Success criteria (KPIs) — failure rate</h2>
     <div class="card">
-      <div v-for="c in detail.summary.topFailures.concat(
-             detail.criteria.filter(x => !detail.summary.topFailures.find(t => t.criterionId === x.id))
-                            .map(x => ({ criterionId:x.id, label:x.label, type:x.type, severity:x.severity, failRate:0 }))
-           )" :key="c.criterionId" style="padding:8px 0; border-bottom:1px solid var(--border)">
+      <div v-for="c in criteriaRows" :key="c.criterionId" style="padding:8px 0; border-bottom:1px solid var(--border)">
         <div class="row">
           <span class="tag" :class="c.severity">{{ c.severity }}</span>
           <strong>{{ c.label }}</strong>
