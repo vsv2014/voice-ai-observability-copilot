@@ -1,1 +1,221 @@
-{"agent":{"id":"agent_dental_booking","name":"Riverside Dental — Appointment Booking","goal":"Answer inbound calls, and book a dental appointment for the caller.","prompt":"You are the friendly front-desk assistant for Riverside Dental. Greet the caller warmly. Understand why they are calling, then offer to book them an appointment and confirm a specific date and time. Always confirm the appointment details back to the caller before ending the call.","tags":["inbound","booking","healthcare"]},"criteria":[{"id":"agent_dental_booking:greeting","agentId":"agent_dental_booking","label":"Opens with a branded greeting","type":"required_step","detector":{"kind":"agent_says","keywords":["thanks for calling","hello","hi ","how can i help","this is"]},"weight":0.176,"severity":"low"},{"id":"agent_dental_booking:no-guarantees","agentId":"agent_dental_booking","label":"Avoids compliance-risky guarantees","type":"compliance","detector":{"kind":"agent_avoids","keywords":["guarantee","guaranteed","100%","promise you","no risk"]},"weight":0.176,"severity":"critical"},{"id":"agent_dental_booking:offer-booking","agentId":"agent_dental_booking","label":"Offers to book an appointment","type":"required_step","detector":{"kind":"agent_says","keywords":["book","schedule","appointment","set up a time","calendar","availability"]},"weight":0.235,"severity":"medium"},{"id":"agent_dental_booking:booking-confirmed","agentId":"agent_dental_booking","label":"Appointment confirmed by customer","type":"goal","detector":{"kind":"customer_confirms","keywords":["yes","that works","sounds good","sure","okay","book me","confirm"]},"weight":0.412,"severity":"high"}],"summary":{"id":"agent_dental_booking","name":"Riverside Dental — Appointment Booking","goal":"Answer inbound calls, and book a dental appointment for the caller.","callsScored":3,"avgScore":65,"highSeverityOpen":2,"criticalViolations":0,"topFailures":[{"criterionId":"agent_dental_booking:booking-confirmed","label":"Appointment confirmed by customer","type":"goal","severity":"high","failRate":67,"failCount":2},{"criterionId":"agent_dental_booking:offer-booking","label":"Offers to book an appointment","type":"required_step","severity":"medium","failRate":33,"failCount":1}],"recommendations":5},"recommendations":[{"id":"agent_dental_booking:rec:0","agentId":"agent_dental_booking","target":"script","title":"Ensure Appointment Confirmation","rationale":"The agent's goal is to book a dental appointment, and confirmation is crucial for this goal. The current script does not explicitly instruct the agent to confirm the appointment details back to the caller in a way that ensures the caller's agreement.","suggestedChange":"Add 'Can I confirm that you would like to book an appointment on [date] at [time]?' to the script after offering a specific date and time.","priority":"high","affectedCallIds":["call_d2","call_d3"]},{"id":"agent_dental_booking:rec:1","agentId":"agent_dental_booking","target":"script","title":"Explicitly Offer Booking","rationale":"The agent must offer to book an appointment as a required step towards achieving the goal. The current script assumes this will happen naturally but does not provide a clear directive.","suggestedChange":"Insert 'Would you like me to book an appointment for you?' after understanding the caller's reason for calling.","priority":"high","affectedCallIds":["call_d3"]},{"id":"agent_dental_booking:rec:2","agentId":"agent_dental_booking","target":"script","title":"Clarify Confirmation Language","rationale":"To ensure the appointment is confirmed, the agent needs to use clear and direct language that prompts a confirmation response from the caller.","suggestedChange":"Add 'Please confirm that this appointment time works for you by saying yes or no.' to the script.","priority":"medium","affectedCallIds":["call_d2","call_d3"]},{"id":"agent_dental_booking:rec:3","agentId":"agent_dental_booking","target":"prompt","title":"Emphasize Booking in the Greeting","rationale":"By emphasizing the booking aspect from the beginning, the agent sets the right context for the call and increases the likelihood of successfully booking an appointment.","suggestedChange":"Modify the greeting to 'Hello, thank you for calling Riverside Dental. How can I assist you with booking your dental appointment today?'","priority":"medium","affectedCallIds":["call_d3"]},{"id":"agent_dental_booking:rec:4","agentId":"agent_dental_booking","target":"script","title":"Handle Potential Objections","rationale":"Anticipating and addressing potential objections or hesitations can increase the chances of confirming a booking.","suggestedChange":"Add 'If the caller expresses hesitation, say: Is there anything preventing you from confirming the appointment at this time? I'm here to help and can offer alternative dates if needed.'","priority":"low","affectedCallIds":["call_d2","call_d3"]}],"useActions":[{"callId":"call_d2","agentId":"agent_dental_booking","criterionId":"agent_dental_booking:booking-confirmed","label":"Appointment confirmed by customer","status":"missed","severity":"high","turnIndex":null,"evidence":"","explanation":"Customer never confirmed — goal not reached."},{"callId":"call_d3","agentId":"agent_dental_booking","criterionId":"agent_dental_booking:booking-confirmed","label":"Appointment confirmed by customer","status":"missed","severity":"high","turnIndex":null,"evidence":"","explanation":"Customer never confirmed — goal not reached."},{"callId":"call_d3","agentId":"agent_dental_booking","criterionId":"agent_dental_booking:offer-booking","label":"Offers to book an appointment","status":"fail","severity":"medium","turnIndex":null,"evidence":"","explanation":"Agent never performed this required step."}]}
+{
+  "agent": {
+    "id": "agent_dental_booking",
+    "name": "Riverside Dental — Appointment Booking",
+    "goal": "Answer inbound calls, and book a dental appointment for the caller.",
+    "prompt": "You are the friendly front-desk assistant for Riverside Dental. Greet the caller warmly. Understand why they are calling, then offer to book them an appointment and confirm a specific date and time. Always confirm the appointment details back to the caller before ending the call.",
+    "tags": [
+      "inbound",
+      "booking",
+      "healthcare"
+    ]
+  },
+  "criteria": [
+    {
+      "id": "agent_dental_booking:greeting",
+      "agentId": "agent_dental_booking",
+      "label": "Opens with a branded greeting",
+      "type": "required_step",
+      "detector": {
+        "kind": "agent_says",
+        "keywords": [
+          "thanks for calling",
+          "hello",
+          "hi ",
+          "how can i help",
+          "this is"
+        ]
+      },
+      "weight": 0.176,
+      "severity": "low"
+    },
+    {
+      "id": "agent_dental_booking:no-guarantees",
+      "agentId": "agent_dental_booking",
+      "label": "Avoids compliance-risky guarantees",
+      "type": "compliance",
+      "detector": {
+        "kind": "agent_avoids",
+        "keywords": [
+          "guarantee",
+          "guaranteed",
+          "100%",
+          "promise you",
+          "no risk"
+        ]
+      },
+      "weight": 0.176,
+      "severity": "critical"
+    },
+    {
+      "id": "agent_dental_booking:offer-booking",
+      "agentId": "agent_dental_booking",
+      "label": "Offers to book an appointment",
+      "type": "required_step",
+      "detector": {
+        "kind": "agent_says",
+        "keywords": [
+          "book",
+          "schedule",
+          "appointment",
+          "set up a time",
+          "calendar",
+          "availability"
+        ]
+      },
+      "weight": 0.235,
+      "severity": "medium"
+    },
+    {
+      "id": "agent_dental_booking:booking-confirmed",
+      "agentId": "agent_dental_booking",
+      "label": "Appointment confirmed by customer",
+      "type": "goal",
+      "detector": {
+        "kind": "customer_confirms",
+        "keywords": [
+          "yes",
+          "that works",
+          "sounds good",
+          "sure",
+          "okay",
+          "book me",
+          "confirm"
+        ]
+      },
+      "weight": 0.412,
+      "severity": "high"
+    }
+  ],
+  "summary": {
+    "id": "agent_dental_booking",
+    "name": "Riverside Dental — Appointment Booking",
+    "goal": "Answer inbound calls, and book a dental appointment for the caller.",
+    "callsScored": 3,
+    "avgScore": 65,
+    "rawAvgScore": 65,
+    "scoreCap": 69,
+    "gatedBy": "high",
+    "highSeverityOpen": 2,
+    "criticalViolations": 0,
+    "topFailures": [
+      {
+        "criterionId": "agent_dental_booking:booking-confirmed",
+        "label": "Appointment confirmed by customer",
+        "type": "goal",
+        "severity": "high",
+        "failRate": 67,
+        "failCount": 2
+      },
+      {
+        "criterionId": "agent_dental_booking:offer-booking",
+        "label": "Offers to book an appointment",
+        "type": "required_step",
+        "severity": "medium",
+        "failRate": 33,
+        "failCount": 1
+      }
+    ],
+    "recommendations": 5
+  },
+  "recommendations": [
+    {
+      "id": "agent_dental_booking:rec:0",
+      "agentId": "agent_dental_booking",
+      "target": "script",
+      "title": "Ensure Appointment Confirmation",
+      "rationale": "The agent's goal is to book a dental appointment, and confirmation is crucial for this goal. The current script does not explicitly instruct the agent to confirm the appointment details back to the caller in a way that ensures the caller's agreement.",
+      "suggestedChange": "Add 'Can I confirm that you would like to book an appointment on [date] at [time]?' to the script after offering a specific date and time.",
+      "priority": "high",
+      "affectedCallIds": [
+        "call_d2",
+        "call_d3"
+      ]
+    },
+    {
+      "id": "agent_dental_booking:rec:1",
+      "agentId": "agent_dental_booking",
+      "target": "script",
+      "title": "Explicitly Offer Booking",
+      "rationale": "The agent must offer to book an appointment as a required step towards achieving the goal. The current script assumes this will happen naturally but does not provide a clear directive.",
+      "suggestedChange": "Insert 'Would you like me to book an appointment for you?' after understanding the caller's reason for calling.",
+      "priority": "high",
+      "affectedCallIds": [
+        "call_d3"
+      ]
+    },
+    {
+      "id": "agent_dental_booking:rec:2",
+      "agentId": "agent_dental_booking",
+      "target": "script",
+      "title": "Clarify Confirmation Language",
+      "rationale": "To ensure the appointment is confirmed, the agent needs to use clear and direct language that prompts a confirmation response from the caller.",
+      "suggestedChange": "Add 'Please confirm that this appointment time works for you by saying yes or no.' to the script.",
+      "priority": "medium",
+      "affectedCallIds": [
+        "call_d2",
+        "call_d3"
+      ]
+    },
+    {
+      "id": "agent_dental_booking:rec:3",
+      "agentId": "agent_dental_booking",
+      "target": "prompt",
+      "title": "Emphasize Booking in the Greeting",
+      "rationale": "By emphasizing the booking aspect from the beginning, the agent sets the right context for the call and increases the likelihood of successfully booking an appointment.",
+      "suggestedChange": "Modify the greeting to 'Hello, thank you for calling Riverside Dental. How can I assist you with booking your dental appointment today?'",
+      "priority": "medium",
+      "affectedCallIds": [
+        "call_d3"
+      ]
+    },
+    {
+      "id": "agent_dental_booking:rec:4",
+      "agentId": "agent_dental_booking",
+      "target": "script",
+      "title": "Handle Potential Objections",
+      "rationale": "Anticipating and addressing potential objections or hesitations can increase the chances of confirming a booking.",
+      "suggestedChange": "Add 'If the caller expresses hesitation, say: Is there anything preventing you from confirming the appointment at this time? I'm here to help and can offer alternative dates if needed.'",
+      "priority": "low",
+      "affectedCallIds": [
+        "call_d2",
+        "call_d3"
+      ]
+    }
+  ],
+  "useActions": [
+    {
+      "callId": "call_d2",
+      "agentId": "agent_dental_booking",
+      "criterionId": "agent_dental_booking:booking-confirmed",
+      "label": "Appointment confirmed by customer",
+      "status": "missed",
+      "severity": "high",
+      "turnIndex": null,
+      "evidence": "",
+      "explanation": "Customer never confirmed — goal not reached."
+    },
+    {
+      "callId": "call_d3",
+      "agentId": "agent_dental_booking",
+      "criterionId": "agent_dental_booking:booking-confirmed",
+      "label": "Appointment confirmed by customer",
+      "status": "missed",
+      "severity": "high",
+      "turnIndex": null,
+      "evidence": "",
+      "explanation": "Customer never confirmed — goal not reached."
+    },
+    {
+      "callId": "call_d3",
+      "agentId": "agent_dental_booking",
+      "criterionId": "agent_dental_booking:offer-booking",
+      "label": "Offers to book an appointment",
+      "status": "fail",
+      "severity": "medium",
+      "turnIndex": null,
+      "evidence": "",
+      "explanation": "Agent never performed this required step."
+    }
+  ]
+}

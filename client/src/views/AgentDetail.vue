@@ -3,6 +3,7 @@ import { ref, watch, computed } from 'vue';
 import { api } from '../api.js';
 import { useLoader } from '../lib/useLoader.js';
 import ScoreBadge from '../components/ScoreBadge.vue';
+import GateNote from '../components/GateNote.vue';
 
 const props = defineProps({ id: String });
 const detail = ref(null);
@@ -53,6 +54,13 @@ const barColor = (rate) => (rate >= 50 ? 'var(--bad)' : rate >= 20 ? 'var(--warn
           <span class="spacer"></span>
           <ScoreBadge :score="detail.summary.avgScore" />
         </div>
+        <!-- Same explanation the call view gives, one level up. -->
+        <GateNote
+          :gated-by="detail.summary.gatedBy"
+          :cap="detail.summary.scoreCap"
+          :raw-score="detail.summary.rawAvgScore"
+          basis="mean across calls"
+        />
         <p class="muted" style="margin:0 0 10px">{{ detail.agent.goal }}</p>
         <div class="row" style="gap:8px; flex-wrap:wrap">
           <span class="pill" v-for="t in detail.agent.tags" :key="t">{{ t }}</span>

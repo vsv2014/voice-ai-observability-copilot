@@ -14,6 +14,11 @@
  * Both `critical` and `high` act as SCORE GATES: a weighted average must never let a
  * failure at these levels present as a healthy agent. They cap the score at different
  * ceilings so the two levels stay distinguishable in the UI and in the data.
+ *
+ * The gate applies at EVERY level a score is shown as a health summary — call, agent,
+ * and account. Gating only the call score is not enough: the agent average is itself an
+ * average, so a single gated call (39) beside a clean one (100) would launder the
+ * violation straight back into a healthy-looking 70. See `gateScore`.
  */
 export const SEVERITIES = ['low', 'medium', 'high', 'critical'];
 
@@ -34,3 +39,25 @@ export const isGatingSeverity = (severity) =>
 /** Rank helper that sorts unknown severities last instead of NaN-ing a comparator. */
 export const rankOf = (severity) =>
   SEVERITY_RANK[severity] ?? Number.MAX_SAFE_INTEGER;
+
+/**
+ * Apply the severity gate to a score. Used for a single call, an agent's average, and
+ * the account average — one implementation so the three levels cannot drift apart.
+ *
+ * The cap is a CEILING, never a floor: a genuinely worse score is left alone.
+ * Critical outranks high, so the strictest applicable cap wins.
+ *
+ * @param {number|null} rawScore            the ungated score (weighted avg, or mean of scores)
+ * @param {{critical?:number, high?:number}} violations  open gating failures underneath it
+ * @returns {{score:number|null, cap:number|null, gatedBy:'critical'|'high'|null}}
+ */
+export function gateScore(rawScore, violations = {}) {
+  if (typeof rawScore !== 'number') {
+    // Nothing scorable → "not scored". No gate to apply.
+    return { score: null, cap: null, gatedBy: null };
+  }
+  const gatedBy =
+    (violations.critical || 0) > 0 ? 'critical' : (violations.high || 0) > 0 ? 'high' : null;
+  const cap = gatedBy ? SCORE_CAPS[gatedBy] : null;
+  return { score: cap === null ? rawScore : Math.min(rawScore, cap), cap, gatedBy };
+}

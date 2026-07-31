@@ -18,5 +18,9 @@
   },
   "allowScripts": {
     "esbuild@0.21.5": true
+  },
+  "//overrides": "Rollup normally loads a prebuilt native .node binary. Windows Smart App Control (and hardened/locked-down corporate machines) block unsigned native modules, which makes `vite`/`vite build` fail with ERR_DLOPEN_FAILED. @rollup/wasm-node is Rollup's official WebAssembly build — same API, no native binary, so it runs anywhere. Slightly slower builds; unnoticeable at this project's size.",
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@^4.24.0"
   }
 }

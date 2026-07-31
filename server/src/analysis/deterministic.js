@@ -16,65 +16,106 @@
  * @property {string} explanation
  */
 
-import { SCORE_CAPS, isGatingSeverity } from './severity.js';
+import { gateScore, isGatingSeverity } from './severity.js';
 
 // ── Keyword matching ────────────────────────────────────────────────────
-// Detectors work by looking for keywords in a turn's text. Two guards keep the
-// matches honest (both added after a code review caught false positives):
-//   1. WHOLE-WORD only  — "yes" must not match inside "yesterday"      (findKeyword)
-//   2. NEGATION-AWARE   — "I can't guarantee…" must NOT count as a guarantee,
-//                         "I'm not sure" must NOT count as a confirmation (negatedBefore)
-// matchKeyword() combines both and is what every detector below calls.
+// Detectors look for keywords in a turn's text. Four small rules keep the matches
+// honest. Each is ONE named function below, so any wrong verdict traces to one rule:
+//
+//   findKeywordAll   whole word, every occurrence — "yes" ≠ "yesterday", and a negated
+//                    mention can't mask a real one later in the same turn
+//   negatedBefore    negation, current clause only — "I can't guarantee…" is compliant,
+//                    but "No, I guarantee it" is still a violation
+//   insideQuestion   the keyword is part of a question — "Can you confirm the price?"
+//                    is the customer asking, not agreeing
+//   DECLINE_OPENER   the turn opens by refusing — "No thanks, I'm okay" declines
+//
+// matchKeyword() always applies the first two; a caller opts into the third by passing
+// it as `reject`. isConfirmation() is the single place all four combine.
 // ─────────────────────────────────────────────────────────────────────────
 
-// Negation cues that flip the meaning of a nearby keyword ("can't guarantee",
-// "not sure"). We scan a few tokens before the match.
+/** Negation cues that flip a nearby keyword ("can't guarantee", "not sure"). */
 const NEGATORS = new Set([
   'not', 'no', 'never', 'cannot', 'without', 'wont', 'dont', 'cant',
   "won't", "don't", "can't", "cannot", "doesn't", "didn't", "isn't",
   "aren't", "wouldn't", "shouldn't",
 ]);
 
+// Clause boundary — one vocabulary, used for BOTH negation scope and question scope.
+// Deliberately not /g: `split` ignores the flag, and `test` would carry lastIndex state.
+const CLAUSE_BREAK = /[,;:.!?—–-]|\bbut\b|\bhowever\b|\bthough\b/;
+
+/** A turn that opens by refusing. ("No problem"/"No worries" are affirmative idioms.) */
+const DECLINE_OPENER = /^(?:no|nope|nah|not)\b(?!\s+(?:problem|worries))/;
+
 /**
- * Find `keyword` in `text` as a whole token (not embedded in a larger word, so
- * "yes" no longer matches "yesterday"). Returns the match index or -1.
+ * Every occurrence of `keyword` in `text` as a whole token (not embedded in a larger
+ * word, so "yes" no longer matches "yesterday"), as ascending indices.
  */
-function findKeyword(text, keyword) {
-  const isAlnum = (ch) => ch >= 'a' && ch <= 'z' ? true : ch >= '0' && ch <= '9';
+function* findKeywordAll(text, keyword) {
+  const isAlnum = (ch) => (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9');
   let from = 0;
   while (from <= text.length) {
     const idx = text.indexOf(keyword, from);
-    if (idx === -1) return -1;
+    if (idx === -1) return;
     const before = idx === 0 ? '' : text[idx - 1];
     const after = idx + keyword.length >= text.length ? '' : text[idx + keyword.length];
     // A boundary holds if the adjacent char isn't alphanumeric, OR the keyword's
     // own edge char isn't alphanumeric (e.g. "100%").
     const okBefore = !isAlnum(before) || !isAlnum(keyword[0]);
     const okAfter = !isAlnum(after) || !isAlnum(keyword[keyword.length - 1]);
-    if (okBefore && okAfter) return idx;
+    if (okBefore && okAfter) yield idx;
     from = idx + 1;
   }
-  return -1;
-}
-
-/** True if a negation cue appears within the ~4 tokens preceding `idx`. */
-function negatedBefore(text, idx) {
-  const preceding = text.slice(0, idx).split(/[^a-z']+/).filter(Boolean).slice(-4);
-  return preceding.some((w) => NEGATORS.has(w) || w.endsWith("n't"));
 }
 
 /**
- * Look for any keyword in `text` as a whole, non-negated token.
+ * True if a negation cue appears in the ~4 tokens before `idx`, within the same clause.
+ *
+ * Clause scope is what stops a negator in an EARLIER clause from excusing a real
+ * violation: "No, I guarantee it" and "Not only that, I guarantee 40%" are both flagged,
+ * while "I can't guarantee savings" stays compliant.
+ */
+function negatedBefore(text, idx) {
+  const clause = text.slice(0, idx).split(CLAUSE_BREAK).pop();
+  const words = clause.split(/[^a-z']+/).filter(Boolean).slice(-4);
+  return words.some((w) => NEGATORS.has(w) || w.endsWith("n't"));
+}
+
+/**
+ * True if the keyword at `idx` is part of a question: a '?' follows it with no clause
+ * boundary in between.
+ *
+ * That one test separates "Can you confirm the price?" (the keyword belongs to the
+ * question — not a confirmation) from "Yes, that works — can we do 3pm?" (the keyword is
+ * in an earlier clause, so the trailing question doesn't undo the agreement).
+ */
+function insideQuestion(text, idx) {
+  const q = text.indexOf('?', idx);
+  return q !== -1 && !CLAUSE_BREAK.test(text.slice(idx, q));
+}
+
+/**
+ * First whole-word, non-negated occurrence of any keyword.
+ * @param {(text:string, idx:number)=>boolean} [reject] optional extra veto per match
  * @returns {{ index:number }|null}
  */
-function matchKeyword(text, keywords) {
+function matchKeyword(text, keywords, reject) {
   const t = (text || '').toLowerCase();
   for (const raw of keywords || []) {
-    const k = raw.toLowerCase();
-    const idx = findKeyword(t, k);
-    if (idx !== -1 && !negatedBefore(t, idx)) return { index: idx };
+    for (const idx of findKeywordAll(t, raw.toLowerCase())) {
+      if (negatedBefore(t, idx)) continue;
+      if (reject?.(t, idx)) continue;
+      return { index: idx };
+    }
   }
   return null;
+}
+
+/** A customer turn is agreement only if it neither refuses nor merely asks. */
+function isConfirmation(text, keywords) {
+  if (DECLINE_OPENER.test((text || '').toLowerCase().trim())) return false;
+  return matchKeyword(text, keywords, insideQuestion) !== null;
 }
 
 /** Evaluate a single criterion against a transcript -> Finding. */
@@ -115,14 +156,16 @@ export function evaluateCriterion(call, transcript, criterion) {
         : { ...base, status: 'missed', explanation: 'No qualifying question was asked — missed opportunity.' };
     }
     case 'customer_confirms': {
-      // Ignores negated hits, so "I'm not sure" no longer counts as confirming.
-      const hit = customerTurns.find((t) => matchKeyword(t.text, detector.keywords));
+      const hit = customerTurns.find((t) => isConfirmation(t.text, detector.keywords));
       return hit
         ? { ...base, status: 'pass', turnIndex: hit.i, evidence: hit.text, explanation: 'Customer confirmed — goal reached.' }
         : { ...base, status: 'missed', explanation: 'Customer never confirmed — goal not reached.' };
     }
     case 'outcome_keyword': {
-      const hit = turns.map((t, i) => ({ ...t, i })).find((t) => matchKeyword(t.text, detector.keywords));
+      // Question-guarded: asking "Did you book the appointment?" is not the outcome.
+      const hit = turns
+        .map((t, i) => ({ ...t, i }))
+        .find((t) => matchKeyword(t.text, detector.keywords, insideQuestion));
       return hit
         ? { ...base, status: 'pass', turnIndex: hit.i, evidence: hit.text, explanation: 'Desired outcome detected.' }
         : { ...base, status: 'missed', explanation: 'Desired outcome not detected.' };
@@ -168,11 +211,7 @@ export function scoreBreakdown(findings, criteria) {
   }
 
   const rawScore = Math.round((earned / total) * 100);
-
-  // Critical outranks high: the strictest applicable cap wins.
-  const gatedBy = violations.critical > 0 ? 'critical' : violations.high > 0 ? 'high' : null;
-  const cap = gatedBy ? SCORE_CAPS[gatedBy] : null;
-  const score = cap === null ? rawScore : Math.min(rawScore, cap);
+  const { score, cap, gatedBy } = gateScore(rawScore, violations);
 
   return { rawScore, score, cap, gatedBy, violations };
 }

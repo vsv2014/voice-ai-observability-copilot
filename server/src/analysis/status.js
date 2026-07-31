@@ -11,6 +11,9 @@ export const isOpen = (f) => f.status !== 'pass';
 /** A zero-tolerance failure — compliance/liability. Gates the score. */
 export const isCriticalOpen = (f) => isOpen(f) && f.severity === 'critical';
 
+/** An open failure at `high` severity specifically — a serious business miss. */
+export const isHighOpen = (f) => isOpen(f) && f.severity === 'high';
+
 /**
  * An open finding severe enough to need a human ("Use Action"): critical OR high.
  * Both gate the score, which is exactly the definition of "cannot be averaged away".

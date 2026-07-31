@@ -65,7 +65,12 @@ onMounted(load);
       <div class="card stat">
         <div class="label">Avg call score</div>
         <div class="value"><ScoreBadge :score="data.totals.avgScore" /></div>
-        <div class="sub">across {{ data.totals.callsScored }} calls</div>
+        <!-- Say when the average is capped, or a gated score looks arbitrary. -->
+        <div class="sub" v-if="data.totals.gatedBy">
+          capped at {{ data.totals.scoreCap }} — {{ data.totals.gatedBy }} failure
+          <span class="muted">(mean was {{ data.totals.rawAvgScore }})</span>
+        </div>
+        <div class="sub" v-else>across {{ data.totals.callsScored }} calls</div>
       </div>
       <div class="card stat">
         <div class="label">Voice agents</div>
@@ -99,7 +104,12 @@ onMounted(load);
           </thead>
           <tbody>
             <tr v-for="a in data.agents" :key="a.id" class="clickable" @click="openAgent(a.id)">
-              <td><strong>{{ a.name }}</strong></td>
+              <td>
+                <strong>{{ a.name }}</strong>
+                <span v-if="a.criticalViolations" class="tag critical" style="margin-left:6px">
+                  {{ a.criticalViolations }} compliance
+                </span>
+              </td>
               <td><ScoreBadge :score="a.avgScore" /></td>
               <td>{{ a.callsScored }}</td>
               <td>

@@ -104,9 +104,10 @@ the UI is identical either way. The active engine is shown in the app footer.
 | Deterministic analysis + scoring | ✅ Real | unchanged |
 | LLM recommendations | ✅ Real **when a free key is set**; deterministic fallback otherwise | swap provider/model |
 | Dashboard, drill-down, Use Actions | ✅ Real | unchanged |
-| Real-time updates | ⚙️ Simulated via the `/api/analyze` run | GHL `OutboundMessage` webhook → same pipeline |
+| Real-time updates | ⚙️ Not built — re-analysis is triggered by `POST /api/analyze` | GHL `OutboundMessage` webhook → same pipeline |
 | GHL embed / SSO | ⚙️ Client handshake implemented; server-side decrypt **stubbed** | add Shared Secret + `/decrypt` route |
 | Live-endpoint field mapping | ⚠️ Transcript-segment schema is **reconstructed** (GHL docs don't expose it) | verify against a live response — isolated in `normalizeTranscript()` |
+| Backend-less (static) deploy | ⚙️ Falls back to a **pre-computed snapshot** in `client/public/data`; the footer says so and labels the recorded engine "not running" | deploy the backend (see `render.yaml` / `Dockerfile`) |
 
 Nothing is faked silently: the app footer and this table state exactly what's live.
 
@@ -120,11 +121,22 @@ Nothing is faked silently: the app footer and this table state exactly what's li
    guarantees" guardrail). Criteria are weighted and editable via the API.
 2. **Scoring** (`server/src/analysis/deterministic.js`) — each criterion has a
    transparent detector (required step present, forbidden phrase, question asked,
-   customer confirmation). Keyword matching is **word-boundary + negation aware**,
-   so "not sure" isn't read as a confirmation and "I can't guarantee…" isn't flagged
-   as a compliance violation. Findings are `pass | fail | missed` with severity, the
-   exact turn, and an evidence quote. Score = weighted % of criteria passed, or
-   `null` ("not scored") when an agent has no scorable criteria.
+   customer confirmation). Matching is governed by **four named rules**, one function
+   each, so any wrong verdict traces to exactly one of them:
+   `findKeywordAll` (whole word, every occurrence — "yes" ≠ "yesterday", and a negated
+   mention can't mask a real one later), `negatedBefore` (negation, current clause only —
+   "I can't guarantee…" is compliant, "No, I guarantee it" is not), `insideQuestion`
+   ("Can you confirm the price?" is asking, not agreeing) and `DECLINE_OPENER`
+   ("No thanks, I'm okay" declines). Findings are
+   `pass | fail | missed` with severity, the exact turn, and an evidence quote.
+   Score = weighted % of criteria passed, or `null` ("not scored") when an agent has no
+   scorable criteria.
+4. **Severity gating** (`server/src/analysis/severity.js`) — a failed `critical`
+   criterion caps the score at 39 and a failed `high` at 69, applied at **call, agent and
+   account level**, so a compliance violation can never be averaged into a healthy-looking
+   number. The ungated mean is kept alongside (`rawScore` / `rawAvgScore`) for trends.
+   Editing criteria re-scores that agent immediately, so findings and recommendations can
+   never refer to criteria that no longer exist.
 3. **Recommendations** (`server/src/analysis/recommend.js`) — failures are
    aggregated per agent; the engine proposes a concrete prompt/script edit and
    lists **which calls it would have fixed** (the flywheel payoff). LLM-authored
@@ -144,8 +156,10 @@ Nothing is faked silently: the app footer and this table state exactly what's li
   behind adapter interfaces so neither can block a working, demoable build.
 - **QA** — the mock dataset is authored with known good/fail/missed/compliance
   cases; the deterministic analyzer is verifiable against them. Unit tests
-  (`cd server && npm test`, 9 tests in `server/test/`) cover the detector edge cases
-  — negation, word boundaries, weighted scoring, the null-score sentinel. And
+  (`cd server && npm test`, 43 tests in `server/test/`) cover the detector edge cases
+  — negation and its clause scope, word boundaries, repeat occurrences, questions vs.
+  confirmations, declines, weighted scoring, the null-score sentinel, and the severity
+  gate at call / agent / account level. And
   `server/src/smoke.js` runs the whole pipeline headless (`node src/smoke.js`),
   printing scores, Use Actions, and recommendations for a fast end-to-end check.
 

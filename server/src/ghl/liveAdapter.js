@@ -35,12 +35,15 @@ export class LiveAdapter {
     };
   }
 
-  async #get(path, { version = V_CONV, params = {} } = {}) {
+  async #get(path, { version = V_CONV, params = {}, allow404 = false } = {}) {
     const url = new URL(this.cfg.apiBase + path);
     for (const [k, v] of Object.entries(params)) {
       if (v != null) url.searchParams.set(k, String(v));
     }
     const res = await fetch(url, { headers: this.#headers(version) });
+    // A missing resource is not an error — MockAdapter returns null for it, so the live
+    // adapter must too, or the same request 404s on mock data and 500s against real GHL.
+    if (res.status === 404 && allow404) return null;
     if (!res.ok) {
       throw new Error(`GHL ${res.status} ${res.statusText} for ${path}`);
     }
@@ -56,7 +59,7 @@ export class LiveAdapter {
   }
 
   async getAgent(agentId) {
-    const raw = await this.#get(`/voice-ai/agents/${enc(agentId)}`, { version: V3 });
+    const raw = await this.#get(`/voice-ai/agents/${enc(agentId)}`, { version: V3, allow404: true });
     return raw ? normalizeAgent(raw.agent || raw) : null;
   }
 
@@ -70,7 +73,11 @@ export class LiveAdapter {
 
   async getCall(callId) {
     // Call logs don't embed transcripts; fetch the log then its transcription.
-    const raw = await this.#get(`/voice-ai/dashboard/call-logs/${enc(callId)}`, { version: V3 });
+    const raw = await this.#get(`/voice-ai/dashboard/call-logs/${enc(callId)}`, {
+      version: V3,
+      allow404: true,
+    });
+    if (!raw) return null;
     const call = normalizeCall(raw.callLog || raw);
     call.transcript = await this.getTranscript(call.messageId || callId);
     return call;
@@ -79,9 +86,10 @@ export class LiveAdapter {
   async getTranscript(messageId) {
     const raw = await this.#get(
       `/conversations/locations/${enc(this.locationId)}/messages/${enc(messageId)}/transcription`,
-      { version: V_CONV }
+      { version: V_CONV, allow404: true }
     );
-    return normalizeTranscript(messageId, raw);
+    // A call with no transcription yet is normal (still processing), not a failure.
+    return raw ? normalizeTranscript(messageId, raw) : null;
   }
 }
 

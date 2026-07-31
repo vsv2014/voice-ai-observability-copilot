@@ -1,1 +1,187 @@
-[{"id":"agent_dental_booking:rec:0","agentId":"agent_dental_booking","target":"script","title":"Ensure Appointment Confirmation","rationale":"The agent's goal is to book a dental appointment, and confirmation is crucial for this goal. The current script does not explicitly instruct the agent to confirm the appointment details back to the caller in a way that ensures the caller's agreement.","suggestedChange":"Add 'Can I confirm that you would like to book an appointment on [date] at [time]?' to the script after offering a specific date and time.","priority":"high","affectedCallIds":["call_d2","call_d3"]},{"id":"agent_dental_booking:rec:1","agentId":"agent_dental_booking","target":"script","title":"Explicitly Offer Booking","rationale":"The agent must offer to book an appointment as a required step towards achieving the goal. The current script assumes this will happen naturally but does not provide a clear directive.","suggestedChange":"Insert 'Would you like me to book an appointment for you?' after understanding the caller's reason for calling.","priority":"high","affectedCallIds":["call_d3"]},{"id":"agent_dental_booking:rec:2","agentId":"agent_dental_booking","target":"script","title":"Clarify Confirmation Language","rationale":"To ensure the appointment is confirmed, the agent needs to use clear and direct language that prompts a confirmation response from the caller.","suggestedChange":"Add 'Please confirm that this appointment time works for you by saying yes or no.' to the script.","priority":"medium","affectedCallIds":["call_d2","call_d3"]},{"id":"agent_dental_booking:rec:3","agentId":"agent_dental_booking","target":"prompt","title":"Emphasize Booking in the Greeting","rationale":"By emphasizing the booking aspect from the beginning, the agent sets the right context for the call and increases the likelihood of successfully booking an appointment.","suggestedChange":"Modify the greeting to 'Hello, thank you for calling Riverside Dental. How can I assist you with booking your dental appointment today?'","priority":"medium","affectedCallIds":["call_d3"]},{"id":"agent_dental_booking:rec:4","agentId":"agent_dental_booking","target":"script","title":"Handle Potential Objections","rationale":"Anticipating and addressing potential objections or hesitations can increase the chances of confirming a booking.","suggestedChange":"Add 'If the caller expresses hesitation, say: Is there anything preventing you from confirming the appointment at this time? I'm here to help and can offer alternative dates if needed.'","priority":"low","affectedCallIds":["call_d2","call_d3"]},{"id":"agent_realty_qualifier:rec:0","agentId":"agent_realty_qualifier","target":"script","title":"Ensure Qualifying Questions Are Asked","rationale":"Asking qualifying questions is crucial to understanding the buyer's needs and budget, directly impacting the agent's goal to qualify inbound buyer leads and book a property viewing.","suggestedChange":"Add specific qualifying questions to the script, such as 'What is your budget for the property?' and 'When are you looking to purchase a property?'","priority":"high","affectedCallIds":["call_r2","call_r3"]},{"id":"agent_realty_qualifier:rec:1","agentId":"agent_realty_qualifier","target":"prompt","title":"Standardize the Branded Greeting","rationale":"Starting with a branded greeting sets a professional tone and is essential for establishing the agent's identity and purpose, which is required for a successful interaction.","suggestedChange":"Begin the prompt with 'Hello, thank you for contacting Summit Realty. My name is [Agent Name], and I'll be happy to assist you with your property search.'","priority":"medium","affectedCallIds":["call_r3"]},{"id":"agent_realty_qualifier:rec:2","agentId":"agent_realty_qualifier","target":"script","title":"Clearly Offer to Book an Appointment","rationale":"Offering to book an appointment is a critical step towards achieving the goal of booking a property viewing. It should be explicitly mentioned in the script.","suggestedChange":"Insert 'Based on your interests, I'd like to offer you the opportunity to schedule a property viewing. Would you be available to meet at your convenience?' into the script after understanding the buyer's needs.","priority":"high","affectedCallIds":["call_r3"]},{"id":"agent_realty_qualifier:rec:3","agentId":"agent_realty_qualifier","target":"script","title":"Secure Confirmation for Appointment Booking","rationale":"To ensure the goal of booking a property viewing is met, it's essential to confirm the appointment details with the customer.","suggestedChange":"Add 'Just to confirm, we have scheduled a property viewing for [Date and Time] at [Location]. Is that correct?' to the script after offering to book an appointment.","priority":"high","affectedCallIds":["call_r3"]},{"id":"agent_realty_qualifier:rec:4","agentId":"agent_realty_qualifier","target":"config","title":"Enhance Training on Qualification Criteria","rationale":"Providing the agent with comprehensive training on what constitutes a qualified lead and how to effectively ask qualifying questions can improve the overall quality of interactions.","suggestedChange":"Include a training module that focuses on the importance of qualifying questions, such as budget and timeline, and provide examples of effective questioning techniques.","priority":"medium","affectedCallIds":["call_r2","call_r3"]},{"id":"agent_solar_followup:rec:0","agentId":"agent_solar_followup","target":"prompt","title":"Emphasize Compliance","rationale":"The agent's goal is to book a consultation without making savings guarantees, but the current prompt does not strongly emphasize this aspect, leading to non-compliant responses.","suggestedChange":"You are an outbound follow-up assistant for GreenLeaf Solar. Call leads who requested a quote, answer basic questions, and book a consultation with a specialist. Be helpful but never promise or guarantee specific savings amounts. Remember, our goal is to provide expert guidance, not to make unsubstantiated claims.","priority":"high","affectedCallIds":["call_s1"]},{"id":"agent_solar_followup:rec:1","agentId":"agent_solar_followup","target":"script","title":"Add a Compliance Reminder","rationale":"A clear reminder in the script can help the agent avoid making compliance-risky guarantees during the call.","suggestedChange":"Before discussing potential savings, say: 'I want to ensure you have accurate expectations. While our solar solutions can significantly reduce your energy costs, I'm not authorized to guarantee specific savings amounts.'","priority":"medium","affectedCallIds":["call_s1"]},{"id":"agent_solar_followup:rec:2","agentId":"agent_solar_followup","target":"config","title":"Implement a Compliance Checklist","rationale":"A checklist can ensure that the agent covers all necessary points without inadvertently making guarantees.","suggestedChange":"Add a pre-call checklist that includes 'Avoid making savings guarantees' to reinforce the agent's understanding of compliance requirements.","priority":"low","affectedCallIds":["call_s1"]},{"id":"agent_solar_followup:rec:3","agentId":"agent_solar_followup","target":"prompt","title":"Rephrase for Clarity","rationale":"The current prompt might be too vague, leading to misunderstandings about what constitutes a 'guarantee'.","suggestedChange":"Replace 'never promise or guarantee specific savings amounts' with 'always refrain from making promises or guarantees about exact dollar or percentage savings'.","priority":"medium","affectedCallIds":["call_s1"]},{"id":"agent_solar_followup:rec:4","agentId":"agent_solar_followup","target":"script","title":"Provide Alternative Phrasing","rationale":"Giving the agent alternative ways to address savings questions can help them stay compliant.","suggestedChange":"When discussing potential savings, suggest the agent say: 'Many of our customers have seen significant reductions in their energy bills, but the actual savings can vary based on several factors.'","priority":"medium","affectedCallIds":["call_s1"]}]
+[
+  {
+    "id": "agent_dental_booking:rec:0",
+    "agentId": "agent_dental_booking",
+    "target": "script",
+    "title": "Ensure Appointment Confirmation",
+    "rationale": "The agent's goal is to book a dental appointment, and confirmation is crucial for this goal. The current script does not explicitly instruct the agent to confirm the appointment details back to the caller in a way that ensures the caller's agreement.",
+    "suggestedChange": "Add 'Can I confirm that you would like to book an appointment on [date] at [time]?' to the script after offering a specific date and time.",
+    "priority": "high",
+    "affectedCallIds": [
+      "call_d2",
+      "call_d3"
+    ]
+  },
+  {
+    "id": "agent_dental_booking:rec:1",
+    "agentId": "agent_dental_booking",
+    "target": "script",
+    "title": "Explicitly Offer Booking",
+    "rationale": "The agent must offer to book an appointment as a required step towards achieving the goal. The current script assumes this will happen naturally but does not provide a clear directive.",
+    "suggestedChange": "Insert 'Would you like me to book an appointment for you?' after understanding the caller's reason for calling.",
+    "priority": "high",
+    "affectedCallIds": [
+      "call_d3"
+    ]
+  },
+  {
+    "id": "agent_dental_booking:rec:2",
+    "agentId": "agent_dental_booking",
+    "target": "script",
+    "title": "Clarify Confirmation Language",
+    "rationale": "To ensure the appointment is confirmed, the agent needs to use clear and direct language that prompts a confirmation response from the caller.",
+    "suggestedChange": "Add 'Please confirm that this appointment time works for you by saying yes or no.' to the script.",
+    "priority": "medium",
+    "affectedCallIds": [
+      "call_d2",
+      "call_d3"
+    ]
+  },
+  {
+    "id": "agent_dental_booking:rec:3",
+    "agentId": "agent_dental_booking",
+    "target": "prompt",
+    "title": "Emphasize Booking in the Greeting",
+    "rationale": "By emphasizing the booking aspect from the beginning, the agent sets the right context for the call and increases the likelihood of successfully booking an appointment.",
+    "suggestedChange": "Modify the greeting to 'Hello, thank you for calling Riverside Dental. How can I assist you with booking your dental appointment today?'",
+    "priority": "medium",
+    "affectedCallIds": [
+      "call_d3"
+    ]
+  },
+  {
+    "id": "agent_dental_booking:rec:4",
+    "agentId": "agent_dental_booking",
+    "target": "script",
+    "title": "Handle Potential Objections",
+    "rationale": "Anticipating and addressing potential objections or hesitations can increase the chances of confirming a booking.",
+    "suggestedChange": "Add 'If the caller expresses hesitation, say: Is there anything preventing you from confirming the appointment at this time? I'm here to help and can offer alternative dates if needed.'",
+    "priority": "low",
+    "affectedCallIds": [
+      "call_d2",
+      "call_d3"
+    ]
+  },
+  {
+    "id": "agent_realty_qualifier:rec:0",
+    "agentId": "agent_realty_qualifier",
+    "target": "script",
+    "title": "Ensure Qualifying Questions Are Asked",
+    "rationale": "Asking qualifying questions is crucial to understanding the buyer's needs and budget, directly impacting the agent's goal to qualify inbound buyer leads and book a property viewing.",
+    "suggestedChange": "Add specific qualifying questions to the script, such as 'What is your budget for the property?' and 'When are you looking to purchase a property?'",
+    "priority": "high",
+    "affectedCallIds": [
+      "call_r2",
+      "call_r3"
+    ]
+  },
+  {
+    "id": "agent_realty_qualifier:rec:1",
+    "agentId": "agent_realty_qualifier",
+    "target": "prompt",
+    "title": "Standardize the Branded Greeting",
+    "rationale": "Starting with a branded greeting sets a professional tone and is essential for establishing the agent's identity and purpose, which is required for a successful interaction.",
+    "suggestedChange": "Begin the prompt with 'Hello, thank you for contacting Summit Realty. My name is [Agent Name], and I'll be happy to assist you with your property search.'",
+    "priority": "medium",
+    "affectedCallIds": [
+      "call_r3"
+    ]
+  },
+  {
+    "id": "agent_realty_qualifier:rec:2",
+    "agentId": "agent_realty_qualifier",
+    "target": "script",
+    "title": "Clearly Offer to Book an Appointment",
+    "rationale": "Offering to book an appointment is a critical step towards achieving the goal of booking a property viewing. It should be explicitly mentioned in the script.",
+    "suggestedChange": "Insert 'Based on your interests, I'd like to offer you the opportunity to schedule a property viewing. Would you be available to meet at your convenience?' into the script after understanding the buyer's needs.",
+    "priority": "high",
+    "affectedCallIds": [
+      "call_r3"
+    ]
+  },
+  {
+    "id": "agent_realty_qualifier:rec:3",
+    "agentId": "agent_realty_qualifier",
+    "target": "script",
+    "title": "Secure Confirmation for Appointment Booking",
+    "rationale": "To ensure the goal of booking a property viewing is met, it's essential to confirm the appointment details with the customer.",
+    "suggestedChange": "Add 'Just to confirm, we have scheduled a property viewing for [Date and Time] at [Location]. Is that correct?' to the script after offering to book an appointment.",
+    "priority": "high",
+    "affectedCallIds": [
+      "call_r3"
+    ]
+  },
+  {
+    "id": "agent_realty_qualifier:rec:4",
+    "agentId": "agent_realty_qualifier",
+    "target": "config",
+    "title": "Enhance Training on Qualification Criteria",
+    "rationale": "Providing the agent with comprehensive training on what constitutes a qualified lead and how to effectively ask qualifying questions can improve the overall quality of interactions.",
+    "suggestedChange": "Include a training module that focuses on the importance of qualifying questions, such as budget and timeline, and provide examples of effective questioning techniques.",
+    "priority": "medium",
+    "affectedCallIds": [
+      "call_r2",
+      "call_r3"
+    ]
+  },
+  {
+    "id": "agent_solar_followup:rec:0",
+    "agentId": "agent_solar_followup",
+    "target": "prompt",
+    "title": "Emphasize Compliance",
+    "rationale": "The agent's goal is to book a consultation without making savings guarantees, but the current prompt does not strongly emphasize this aspect, leading to non-compliant responses.",
+    "suggestedChange": "You are an outbound follow-up assistant for GreenLeaf Solar. Call leads who requested a quote, answer basic questions, and book a consultation with a specialist. Be helpful but never promise or guarantee specific savings amounts. Remember, our goal is to provide expert guidance, not to make unsubstantiated claims.",
+    "priority": "high",
+    "affectedCallIds": [
+      "call_s1"
+    ]
+  },
+  {
+    "id": "agent_solar_followup:rec:1",
+    "agentId": "agent_solar_followup",
+    "target": "script",
+    "title": "Add a Compliance Reminder",
+    "rationale": "A clear reminder in the script can help the agent avoid making compliance-risky guarantees during the call.",
+    "suggestedChange": "Before discussing potential savings, say: 'I want to ensure you have accurate expectations. While our solar solutions can significantly reduce your energy costs, I'm not authorized to guarantee specific savings amounts.'",
+    "priority": "medium",
+    "affectedCallIds": [
+      "call_s1"
+    ]
+  },
+  {
+    "id": "agent_solar_followup:rec:2",
+    "agentId": "agent_solar_followup",
+    "target": "config",
+    "title": "Implement a Compliance Checklist",
+    "rationale": "A checklist can ensure that the agent covers all necessary points without inadvertently making guarantees.",
+    "suggestedChange": "Add a pre-call checklist that includes 'Avoid making savings guarantees' to reinforce the agent's understanding of compliance requirements.",
+    "priority": "low",
+    "affectedCallIds": [
+      "call_s1"
+    ]
+  },
+  {
+    "id": "agent_solar_followup:rec:3",
+    "agentId": "agent_solar_followup",
+    "target": "prompt",
+    "title": "Rephrase for Clarity",
+    "rationale": "The current prompt might be too vague, leading to misunderstandings about what constitutes a 'guarantee'.",
+    "suggestedChange": "Replace 'never promise or guarantee specific savings amounts' with 'always refrain from making promises or guarantees about exact dollar or percentage savings'.",
+    "priority": "medium",
+    "affectedCallIds": [
+      "call_s1"
+    ]
+  },
+  {
+    "id": "agent_solar_followup:rec:4",
+    "agentId": "agent_solar_followup",
+    "target": "script",
+    "title": "Provide Alternative Phrasing",
+    "rationale": "Giving the agent alternative ways to address savings questions can help them stay compliant.",
+    "suggestedChange": "When discussing potential savings, suggest the agent say: 'Many of our customers have seen significant reductions in their energy bills, but the actual savings can vary based on several factors.'",
+    "priority": "medium",
+    "affectedCallIds": [
+      "call_s1"
+    ]
+  }
+]

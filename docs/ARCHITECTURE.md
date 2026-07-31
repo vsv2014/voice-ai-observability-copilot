@@ -68,14 +68,14 @@ Two loops, exactly as the brief frames them:
 │  │ agents · calls · criteria · findings · recommendations (JSON/in-mem) │  │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │         ▲                                                                   │
-│  REST + SSE ── /api/agents /api/calls /api/analysis /api/recommendations   │
+│  REST ── /api/agents /api/calls /api/analyze /api/recommendations          │
 └────────────────────────────────────────────────────────────────────────── ┘
 ```
 
 ### Key design decision: the **GHL Adapter interface**
 
-All HighLevel access goes through one interface (`listAgents`, `listCalls`,
-`getTranscript`, `subscribeCallEvents`). Two implementations:
+All HighLevel access goes through one interface (`listAgents`, `getAgent`, `listCalls`,
+`getCall`, `getTranscript`). Two implementations:
 
 - **`MockAdapter`** (default) — reads realistic sample data shaped like real GHL payloads.
   The whole app runs and demos with **zero credentials**.
@@ -89,9 +89,13 @@ demoable today, and going live is a one-file swap, not a rewrite. The README's
 
 The engine has two layers behind one `analyzeCall(call, criteria)` interface:
 
-- **Deterministic analyzer** (no API key) — rule/heuristic checks against criteria
-  (keyword/goal detection, required-step presence, sentiment proxy, dead-air, objection
-  handling). Runs out-of-the-box so the demo never depends on a paid key.
+- **Deterministic analyzer** (no API key) — transparent rule checks against criteria, via
+  five detector kinds: required-step presence (`agent_says`), compliance guardrails
+  (`agent_avoids`), qualifying questions (`question_asked`), customer agreement
+  (`customer_confirms`) and outcome keywords (`outcome_keyword`). Matching is governed by
+  four named rules — `findKeywordAll`, `negatedBefore`, `insideQuestion`, `DECLINE_OPENER`
+  — one function each, sharing a single `CLAUSE_BREAK` vocabulary, so a wrong verdict
+  traces to one rule. Runs out-of-the-box so the demo never depends on a paid key.
 - **LLM analyzer** (optional, free tiers) — Google Gemini free tier or Groq (free) via a
   provider adapter. Produces richer, natural-language findings + prompt rewrites.
   Enabled by dropping a free key in `.env`; otherwise silently falls back to deterministic.
@@ -104,9 +108,9 @@ the "flywheel" logic don't care which produced them.
 - **VoiceAgent** — id, name, goal, script/prompt, KPIs/criteria.
 - **Call** — id, agentId, contactId, direction, startedAt, duration, outcome, recordingUrl.
 - **Transcript** — callId, turns[] `{ role: 'agent'|'customer', text, startMs, endMs }`.
-- **Criterion** — id, agentId, label, type (`required_step`|`goal`|`compliance`|`kpi`),
-  detector config, weight.
-- **Finding** — callId, criterionId, status (`pass`|`fail`|`missed`), severity, turnRef,
+- **Criterion** — id, agentId, label, type
+  (`required_step`|`goal`|`compliance`|`qualification`), detector config, weight, severity.
+- **Finding** — callId, criterionId, status (`pass`|`fail`|`missed`), severity, turnIndex,
   evidence, explanation.
 - **Recommendation** — agentId, target (`prompt`|`script`|`config`), rationale,
   suggestedChange, affectedCallIds (the flywheel proof).
@@ -120,16 +124,27 @@ the "flywheel" logic don't care which produced them.
 - **Engineering** — adapter + engine interfaces isolate the two risky externalities (GHL
   API access, paid LLM keys) so neither blocks a working build.
 - **QA** — mock dataset is authored to include known-good, known-bad, and edge cases;
-  deterministic analyzer is unit-tested (`server/test/`, 9 tests) with fixed expected
-  findings (no LLM flakiness); `server/src/smoke.js` exercises the full pipeline headless.
+  deterministic analyzer and the metrics rollups are unit-tested (`server/test/`, 43 tests)
+  with fixed expected findings (no LLM flakiness); `server/src/smoke.js` exercises the full
+  pipeline headless.
+
+### Key design decision: the **severity gate applies at every level**
+
+A weighted average is the standard way an observability dashboard launders a compliance
+violation into a healthy number. `analysis/severity.js` caps a score whenever a
+`critical` (≤39) or `high` (≤69) criterion fails underneath it — and the cap is applied to
+the **call, the agent average, and the account average** through one `gateScore()`. Gating
+only the call is not enough: one capped call (39) beside a clean one (100) averages back to
+a healthy-looking 70. The ungated mean is retained alongside it (`rawScore`/`rawAvgScore`)
+for trends, and the agent table sorts compliance violations above merely-low scores.
 
 ## 6. Mocked vs. real (honesty matrix — finalized in README)
 
 | Capability | This build | Path to production |
 |---|---|---|
 | Transcript ingestion | Mock adapter over realistic sample data | LiveAdapter → GHL Conversations/Calls API |
-| Real-time updates | SSE over mock event stream | GHL webhooks → same SSE |
-| Criteria engine | Real, works on any transcript | unchanged |
+| Real-time updates | **Not built** — re-analysis is triggered by `POST /api/analyze` | GHL `OutboundMessage` webhook → same pipeline → push (e.g. SSE) |
+| Criteria engine | Real, works on any transcript; editable via `PUT /api/agents/:id/criteria` | unchanged |
 | Deterministic analysis | Real | unchanged |
 | LLM analysis | Real when a free key is set | swap model/provider |
 | Embedding in GHL | Custom Page iframe + SSO handshake stub | register marketplace app |

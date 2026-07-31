@@ -180,3 +180,90 @@ test('scoreCall stays backwards compatible and returns the GATED score', () => {
   const { criteria, findings } = mostlyGood('critical');
   assert.equal(scoreCall(findings, criteria), SCORE_CAPS.critical);
 });
+
+// ── Negation must respect clause boundaries ──
+// A negator in an EARLIER clause does not negate the keyword. Without this, a leading
+// discourse marker was enough to hide a compliance violation entirely.
+
+test('agent_avoids: a sentence-initial "No," does NOT excuse a real guarantee', () => {
+  const t = tx([{ role: 'agent', text: 'No, I guarantee it will work.', startMs: 0, endMs: 1 }]);
+  const f = evaluateCriterion(call, t, crit('agent_avoids', ['guarantee']));
+  assert.equal(f.status, 'fail');
+});
+
+test('agent_avoids: "Not only that, I guarantee…" is still a violation', () => {
+  const t = tx([{ role: 'agent', text: 'Not only that, I guarantee 40% savings.', startMs: 0, endMs: 1 }]);
+  const f = evaluateCriterion(call, t, crit('agent_avoids', ['guarantee']));
+  assert.equal(f.status, 'fail');
+});
+
+test('agent_avoids: a negated mention does not mask a real one later in the turn', () => {
+  const t = tx([{
+    role: 'agent',
+    text: "I can't guarantee savings, but I guarantee you'll love it.",
+    startMs: 0, endMs: 1,
+  }]);
+  const f = evaluateCriterion(call, t, crit('agent_avoids', ['guarantee']));
+  assert.equal(f.status, 'fail', 'every occurrence is checked, not just the first');
+});
+
+test('agent_avoids: same-clause negation is still respected', () => {
+  for (const text of [
+    'I cannot guarantee savings.',
+    "I can't promise you anything specific.",
+    'We never guarantee a specific amount.',
+    'There is no guarantee of savings.',
+  ]) {
+    const t = tx([{ role: 'agent', text, startMs: 0, endMs: 1 }]);
+    const f = evaluateCriterion(call, t, crit('agent_avoids', ['guarantee', 'promise you']));
+    assert.equal(f.status, 'pass', `should be compliant: "${text}"`);
+  }
+});
+
+// ── A question is not a confirmation ──
+
+test('customer_confirms: "Can you confirm the price?" is NOT a confirmation', () => {
+  const t = tx([{ role: 'customer', text: 'Can you confirm what the price is?', startMs: 0, endMs: 1 }]);
+  const f = evaluateCriterion(call, t, crit('customer_confirms', ['confirm']));
+  assert.equal(f.status, 'missed');
+});
+
+test('customer_confirms: other interrogatives are not confirmations either', () => {
+  for (const text of ['Is that okay?', 'Are you sure?', 'What if I say yes?']) {
+    const t = tx([{ role: 'customer', text, startMs: 0, endMs: 1 }]);
+    const f = evaluateCriterion(call, t, crit('customer_confirms', ['yes', 'sure', 'okay']));
+    assert.equal(f.status, 'missed', `should not confirm: "${text}"`);
+  }
+});
+
+test('customer_confirms: a confirmation that trails into a question still passes', () => {
+  const t = tx([{ role: 'customer', text: 'Yes, that works — can we do 3pm?', startMs: 0, endMs: 1 }]);
+  const f = evaluateCriterion(call, t, crit('customer_confirms', ['yes', 'that works']));
+  assert.equal(f.status, 'pass', 'opens with a confirmation, so it is one');
+});
+
+test('customer_confirms: a turn that opens with a refusal is not a confirmation', () => {
+  for (const text of ["No thanks, I'm okay.", 'Nope, I am good.', 'Not interested, thanks.']) {
+    const t = tx([{ role: 'customer', text, startMs: 0, endMs: 1 }]);
+    const f = evaluateCriterion(call, t, crit('customer_confirms', ['yes', 'okay', 'sure', 'good']));
+    assert.equal(f.status, 'missed', `should decline: "${text}"`);
+  }
+});
+
+test('customer_confirms: "No problem" is an affirmative idiom, not a refusal', () => {
+  const t = tx([{ role: 'customer', text: 'No problem, that works for me.', startMs: 0, endMs: 1 }]);
+  const f = evaluateCriterion(call, t, crit('customer_confirms', ['that works']));
+  assert.equal(f.status, 'pass');
+});
+
+test('outcome_keyword: asking about the outcome is not the outcome', () => {
+  const t = tx([{ role: 'agent', text: 'Did you book the appointment?', startMs: 0, endMs: 1 }]);
+  const f = evaluateCriterion(call, t, crit('outcome_keyword', ['book', 'appointment']));
+  assert.equal(f.status, 'missed');
+});
+
+test('agent_says: a question still satisfies a required step', () => {
+  const t = tx([{ role: 'agent', text: 'Would you like to book an appointment?', startMs: 0, endMs: 1 }]);
+  const f = evaluateCriterion(call, t, crit('agent_says', ['book']));
+  assert.equal(f.status, 'pass', 'offering to book IS the required step');
+});

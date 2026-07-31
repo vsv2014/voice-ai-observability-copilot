@@ -6,30 +6,42 @@
 // so the full dashboard still works from a single link.
 const STATIC_BASE = `${import.meta.env.BASE_URL}data`;
 
+// Which source actually answered the last request. The footer reports this, so a
+// backend-less deploy can't claim "Backend connected" over precomputed JSON.
+let lastSource = 'backend';
+export const dataSource = () => lastSource;
+
 async function get(apiPath, staticFile) {
   try {
     const r = await fetch(apiPath, { headers: { Accept: 'application/json' } });
     const ct = r.headers.get('content-type') || '';
-    if (r.ok && ct.includes('application/json')) return await r.json();
+    if (r.ok && ct.includes('application/json')) {
+      lastSource = 'backend';
+      return await r.json();
+    }
   } catch {
     /* backend unavailable — fall through to the static snapshot */
   }
   const s = await fetch(`${STATIC_BASE}/${staticFile}`);
   if (!s.ok) throw new Error(`${s.status} ${s.statusText}`);
+  lastSource = 'snapshot';
   return s.json();
 }
 
+const enc = encodeURIComponent;
+
 export const api = {
-  health: () => get('/api/health', 'health.json'),
+  // `source` tells the UI whether this came from a live backend or the static snapshot.
+  health: async () => ({ ...(await get('/api/health', 'health.json')), source: lastSource }),
   overview: () => get('/api/overview', 'overview.json'),
   agents: () => get('/api/agents', 'agents.json'),
-  agent: (id) => get(`/api/agents/${id}`, `agent-${id}.json`),
-  agentCalls: (id) => get(`/api/agents/${id}/calls`, `agent-${id}-calls.json`),
-  call: (callId) => get(`/api/calls/${callId}`, `call-${callId}.json`),
+  agent: (id) => get(`/api/agents/${enc(id)}`, `agent-${id}.json`),
+  agentCalls: (id) => get(`/api/agents/${enc(id)}/calls`, `agent-${id}-calls.json`),
+  call: (callId) => get(`/api/calls/${enc(callId)}`, `call-${callId}.json`),
   recommendations: () => get('/api/recommendations', 'recommendations.json'),
   useActions: (agentId) =>
     get(
-      `/api/use-actions${agentId ? `?agentId=${agentId}` : ''}`,
+      `/api/use-actions${agentId ? `?agentId=${enc(agentId)}` : ''}`,
       agentId ? `use-actions-${agentId}.json` : 'use-actions.json'
     ),
 

@@ -5,10 +5,30 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CRITERIA_FILE = join(__dirname, '..', '..', 'data', 'criteria.json');
 
-// Read the saved criteria from disk (empty list if the file doesn't exist yet).
+/** Strip a leading UTF-8 byte-order mark, which JSON.parse rejects. */
+const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
+
+/**
+ * Read the saved criteria from disk (empty list if the file doesn't exist yet).
+ *
+ * Tolerant by design, because this file is meant to be hand-editable:
+ *   • a UTF-8 BOM is stripped — any Windows editor or `>` redirect adds one, and a bare
+ *     JSON.parse on a BOM throws, which previously 500'd EVERY read endpoint from a file
+ *     that looks perfectly valid;
+ *   • an unreadable or non-array file degrades to "no stored criteria" (so defaults are
+ *     re-seeded) instead of taking the whole dashboard down.
+ */
 function readStored() {
   if (!existsSync(CRITERIA_FILE)) return [];
-  return JSON.parse(readFileSync(CRITERIA_FILE, 'utf8'));
+  try {
+    const raw = readFileSync(CRITERIA_FILE, 'utf8');
+    const parsed = JSON.parse(stripBom(raw));
+    if (!Array.isArray(parsed)) throw new Error('expected a JSON array of criteria');
+    return parsed;
+  } catch (err) {
+    console.warn(`[criteria] ignoring unreadable ${CRITERIA_FILE} (${err.message}); re-seeding defaults.`);
+    return [];
+  }
 }
 
 /**
@@ -61,8 +81,22 @@ export function criteriaForAgent(agentId, all) {
   return all.filter((c) => c.agentId === agentId);
 }
 
+/**
+ * Write the criteria set to disk. Returns whether it was actually persisted.
+ *
+ * Deliberately non-throwing: `loadCriteria` seeds-and-saves on a READ path, so an
+ * unwritable data directory (a read-only container filesystem is a common hardening
+ * default) used to turn every GET into a 500. Seeding now still works in memory and the
+ * dashboard stays up; callers that need durability (the criteria PUT) check the result.
+ */
 export function persistCriteria(all) {
-  writeFileSync(CRITERIA_FILE, JSON.stringify(all, null, 2));
+  try {
+    writeFileSync(CRITERIA_FILE, JSON.stringify(all, null, 2));
+    return true;
+  } catch (err) {
+    console.warn(`[criteria] could not save to ${CRITERIA_FILE} (${err.message}); continuing in memory.`);
+    return false;
+  }
 }
 
 /**

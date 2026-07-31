@@ -66,14 +66,27 @@ api.get('/agents/:id/criteria', wrap(async (req, res) => {
 }));
 
 api.put('/agents/:id/criteria', wrap(async (req, res) => {
+  const agent = await ghl.getAgent(req.params.id);
+  if (!agent) return res.status(404).json({ error: 'agent not found' });
+
   const result = validateCriteria(req.body?.criteria, req.params.id);
   if (!result.ok) {
     return res.status(400).json({ error: 'invalid criteria', details: result.errors });
   }
   const all = loadCriteria(await ghl.listAgents());
   const others = all.filter((c) => c.agentId !== req.params.id);
-  persistCriteria([...others, ...result.criteria]);
-  res.json({ ok: true, count: result.criteria.length });
+  if (!persistCriteria([...others, ...result.criteria])) {
+    // Criteria live only on disk, so a failed write means the edit is lost. Say so
+    // instead of returning ok:true for a change that didn't stick.
+    return res.status(503).json({ error: 'criteria could not be saved — the data directory is not writable' });
+  }
+
+  // The stored findings and recommendations were scored against the OLD criteria, so
+  // they are now stale — and partly orphaned, since they can reference criteria that no
+  // longer exist. Re-score this agent immediately; otherwise the dashboard shows the new
+  // criteria at 0% fail beside recommendations about criteria the user just deleted.
+  const run = await runAnalysis({ agentId: req.params.id });
+  res.json({ ok: true, count: result.criteria.length, reanalyzed: run.callsScored });
 }));
 
 // ── Dashboard ──

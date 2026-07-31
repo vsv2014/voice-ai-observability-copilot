@@ -1,7 +1,7 @@
 import { store } from '../store/store.js';
 import { criteriaForAgent } from './criteria.js';
-import { isOpen, isCriticalOpen, isEscalatableOpen } from './status.js';
-import { rankOf } from './severity.js';
+import { isOpen, isCriticalOpen, isHighOpen, isEscalatableOpen } from './status.js';
+import { rankOf, gateScore } from './severity.js';
 
 /** Mean of the numeric scores in `analyses`, or null if none are scored. */
 function avgOf(analyses) {
@@ -11,6 +11,27 @@ function avgOf(analyses) {
 
 const countFindings = (analyses, pred) =>
   analyses.reduce((s, a) => s + a.findings.filter(pred).length, 0);
+
+/** Gating violations underneath a set of calls, counted from the findings themselves. */
+const gatingViolations = (analyses) => ({
+  critical: countFindings(analyses, isCriticalOpen),
+  high: countFindings(analyses, isHighOpen),
+});
+
+/**
+ * A rollup score for a set of calls: the mean, then GATED.
+ *
+ * Averaging gated call scores is not enough on its own — one capped call (39) beside a
+ * clean one (100) averages to a healthy-looking 70, which is exactly the laundering the
+ * gate exists to prevent. So the mean is re-gated against the violations underneath it.
+ * `rawAvgScore` keeps the ungated mean for trends, mirroring rawScore/score on a call.
+ */
+function rollupScore(analyses) {
+  const rawAvgScore = avgOf(analyses);
+  const violations = gatingViolations(analyses);
+  const { score, cap, gatedBy } = gateScore(rawAvgScore, violations);
+  return { avgScore: score, rawAvgScore, scoreCap: cap, gatedBy };
+}
 
 /** Account-level rollup for the dashboard landing view. */
 export function accountOverview(agents, criteria) {
@@ -22,15 +43,21 @@ export function accountOverview(agents, criteria) {
     totals: {
       agents: agents.length,
       callsScored: allAnalyses.length,
-      avgScore: avgOf(allAnalyses),
+      ...rollupScore(allAnalyses),
       openIssues: countFindings(allAnalyses, isOpen),
       useActions: countFindings(allAnalyses, isEscalatableOpen),
       // Surfaced separately: compliance violations must be visible as a raw count,
       // never only as an ingredient in an average.
       criticalViolations: countFindings(allAnalyses, isCriticalOpen),
     },
-    // Worst (lowest score) first; unscored agents sort to the end.
-    agents: perAgent.sort((a, b) => (a.avgScore ?? Infinity) - (b.avgScore ?? Infinity)),
+    // Worst first. Compliance violations outrank a merely low score, so the agent with
+    // a liability is always at the top even if two agents share the same capped score;
+    // then by gated score ascending, with unscored agents last.
+    agents: perAgent.sort(
+      (a, b) =>
+        Number(b.criticalViolations > 0) - Number(a.criticalViolations > 0) ||
+        (a.avgScore ?? Infinity) - (b.avgScore ?? Infinity)
+    ),
     recommendations: store.allRecommendations().length,
   };
 }
@@ -61,7 +88,7 @@ export function agentSummary(agent, criteria) {
     name: agent.name,
     goal: agent.goal,
     callsScored: scored,
-    avgScore: avgOf(analyses),
+    ...rollupScore(analyses),
     highSeverityOpen: countFindings(analyses, isEscalatableOpen),
     criticalViolations: countFindings(analyses, isCriticalOpen),
     topFailures: byCriterion.filter((c) => c.failCount > 0).sort((a, b) => b.failRate - a.failRate),

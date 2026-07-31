@@ -15,6 +15,17 @@ export function validateCriteria(input, agentId) {
     return { ok: false, errors: ['body must be an object with a "criteria" array'] };
   }
 
+  // An empty array is rejected rather than accepted-and-ignored. It used to return
+  // {ok:true,count:0}, delete the agent's stored rows, and then get silently re-seeded
+  // with defaults on the next read — reporting success for an edit that never happened.
+  // An agent with no criteria isn't scorable, so there is no honest way to store it.
+  if (input.length === 0) {
+    return {
+      ok: false,
+      errors: ['"criteria" must not be empty — an agent with no criteria cannot be scored; remove individual criteria instead'],
+    };
+  }
+
   const errors = [];
   const criteria = [];
 
