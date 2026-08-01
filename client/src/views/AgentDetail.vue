@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { api } from '../api.js';
+import { api, dataSource } from '../api.js';
 import { useLoader } from '../lib/useLoader.js';
 import ScoreBadge from '../components/ScoreBadge.vue';
 import GateNote from '../components/GateNote.vue';
@@ -16,6 +16,9 @@ const testing = ref(false);
 const saving = ref(false);
 const configError = ref('');
 const configNotice = ref('');
+// Editing and testing a prompt both need the API. On the static snapshot deploy there
+// isn't one, so the controls say why rather than failing when they're pressed.
+const backendLive = ref(true);
 const { loading, error, run } = useLoader();
 
 watch(
@@ -30,6 +33,7 @@ watch(
       [detail.value, calls.value] = res;
       draftPrompt.value = detail.value.agent.prompt || '';
       savedPrompt.value = draftPrompt.value;
+      backendLive.value = dataSource() === 'backend';
     }
   },
   { immediate: true }
@@ -127,18 +131,31 @@ const barColor = (rate) => (rate >= 50 ? 'var(--bad)' : rate >= 20 ? 'var(--warn
       <p class="muted" style="margin:0 0 10px">
         Edit the prompt below, then test against failing KPIs before saving.
       </p>
+      <div v-if="!backendLive" class="gate-note" style="margin-bottom:10px">
+        Read-only: this page is served from the pre-computed snapshot, which has no API.
+        Run the backend (<code>cd server &amp;&amp; npm start</code>) to test or save a prompt.
+      </div>
       <textarea
         v-model="draftPrompt"
         class="prompt-editor"
         rows="8"
         spellcheck="false"
+        :readonly="!backendLive"
         placeholder="Agent system prompt / script…"
       ></textarea>
       <div class="row" style="margin-top:12px">
-        <button class="btn" :disabled="testing || !draftPrompt.trim()" @click="testPrompt">
+        <button
+          class="btn"
+          :disabled="!backendLive || testing || !draftPrompt.trim()"
+          @click="testPrompt"
+        >
           {{ testing ? 'Testing…' : 'Test prompt' }}
         </button>
-        <button class="btn primary" :disabled="saving || !promptDirty" @click="savePrompt">
+        <button
+          class="btn primary"
+          :disabled="!backendLive || saving || !promptDirty"
+          @click="savePrompt"
+        >
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
         <span v-if="promptDirty" class="muted" style="font-size:12px">Unsaved changes</span>

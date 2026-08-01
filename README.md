@@ -113,7 +113,7 @@ identical either way. The active engine is shown in the app footer.
 | Real-time updates | ⚙️ Not built — re-analysis is triggered by `POST /api/analyze` | GHL `OutboundMessage` webhook → same pipeline |
 | GHL embed / SSO | ⚙️ Client handshake implemented; server-side decrypt **stubbed** | add Shared Secret + `/decrypt` route |
 | Live-endpoint field mapping | ⚠️ Transcript-segment schema is **reconstructed** (GHL docs don't expose it) | verify against a live response — isolated in `normalizeTranscript()` |
-| Backend-less (static) deploy | ⚙️ Falls back to a **pre-computed snapshot** in `client/public/data`; the footer says so and labels the recorded engine "not running" | deploy the backend (see `render.yaml` / `Dockerfile`) |
+| Backend-less (static) deploy | ⚙️ Falls back to a **pre-computed snapshot** in `client/public/data`; the footer says so, the recorded engine is labelled "not running", and the prompt editor goes read-only because testing a draft cannot be pre-computed | deploy the backend (see `render.yaml` / `Dockerfile`) |
 
 Nothing is faked silently: the app footer and this table state exactly what's live.
 

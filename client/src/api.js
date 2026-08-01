@@ -30,6 +30,42 @@ async function get(apiPath, staticFile) {
 
 const enc = encodeURIComponent;
 
+const NO_BACKEND =
+  "Couldn't reach the backend. Testing or saving a prompt needs the running server — " +
+  'the static snapshot deploy has no API.';
+
+/**
+ * POST/PUT against the API.
+ *
+ * Unlike `get()` there is no snapshot to fall back to: a write or a prompt test only
+ * means something against a live backend. The one subtlety is telling "the API said no"
+ * apart from "there is no API here" — a static host answers `/api/*` with its own error
+ * page, and Vercel's is JSON whose `error` is an OBJECT, so passing it to `new Error()`
+ * rendered a literal "[object Object]" in the UI. Our API always replies with a STRING
+ * `error`, so anything else on a failure is the host talking, not the server.
+ */
+async function send(method, apiPath, body) {
+  let res;
+  try {
+    res = await fetch(apiPath, {
+      method,
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(NO_BACKEND);
+  }
+
+  const ct = res.headers.get('content-type') || '';
+  const data = ct.includes('application/json') ? await res.json().catch(() => null) : null;
+
+  if (!res.ok) {
+    throw new Error(typeof data?.error === 'string' ? data.error : NO_BACKEND);
+  }
+  if (!data) throw new Error(NO_BACKEND);
+  return data;
+}
+
 export const api = {
   // `source` tells the UI whether this came from a live backend or the static snapshot.
   health: async () => ({ ...(await get('/api/health', 'health.json')), source: lastSource }),
@@ -61,25 +97,8 @@ export const api = {
     return { static: true };
   },
 
-  savePrompt: async (agentId, prompt) => {
-    const r = await fetch(`/api/agents/${enc(agentId)}/prompt`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || `${r.status} ${r.statusText}`);
-    return data;
-  },
+  savePrompt: (agentId, prompt) => send('PUT', `/api/agents/${enc(agentId)}/prompt`, { prompt }),
 
-  testPrompt: async (agentId, prompt) => {
-    const r = await fetch(`/api/agents/${enc(agentId)}/test-prompt`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || `${r.status} ${r.statusText}`);
-    return data;
-  },
+  testPrompt: (agentId, prompt) =>
+    send('POST', `/api/agents/${enc(agentId)}/test-prompt`, { prompt }),
 };
