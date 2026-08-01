@@ -6,6 +6,7 @@ import { validateCriteria } from '../analysis/validate.js';
 import { runAnalysis } from '../analysis/run.js';
 import { accountOverview, agentSummary, useActions } from '../analysis/metrics.js';
 import { getLlm } from '../analysis/llm/index.js';
+import { runSyntheticValidation } from '../analysis/synthetic.js';
 import { config } from '../config.js';
 
 export const api = Router();
@@ -108,4 +109,52 @@ api.get('/recommendations', wrap(async (req, res) => {
 api.post('/analyze', wrap(async (req, res) => {
   const result = await runAnalysis({ agentId: req.body?.agentId });
   res.json(result);
+}));
+
+// ── Agent prompt (mock mode) + synthetic prompt test ──
+api.put('/agents/:id/prompt', wrap(async (req, res) => {
+  const { prompt } = req.body || {};
+  if (typeof prompt !== 'string') return res.status(400).json({ error: 'prompt is required' });
+  const agent = await ghl.getAgent(req.params.id);
+  if (!agent) return res.status(404).json({ error: 'agent not found' });
+  if (config.ghl.mode !== 'mock' || typeof ghl.updateAgentPrompt !== 'function') {
+    return res.status(501).json({ error: 'prompt editing is only supported in mock mode' });
+  }
+  const updated = await ghl.updateAgentPrompt(req.params.id, prompt);
+  res.json({ ok: true, agent: updated });
+}));
+
+api.post('/agents/:id/test-prompt', wrap(async (req, res) => {
+  const { prompt } = req.body || {};
+  if (typeof prompt !== 'string') return res.status(400).json({ error: 'prompt is required' });
+
+  const agent = await ghl.getAgent(req.params.id);
+  if (!agent) return res.status(404).json({ error: 'agent not found' });
+
+  const allCriteria = loadCriteria(await ghl.listAgents());
+  const agentCriteria = criteriaForAgent(agent.id, allCriteria);
+  const summary = agentSummary(agent, allCriteria);
+  const failingIds = new Set((summary.topFailures || []).map((f) => f.criterionId));
+  let failingCriteria = agentCriteria.filter((c) => failingIds.has(c.id));
+  if (!failingCriteria.length) failingCriteria = agentCriteria;
+
+  const { scenarios, evaluations, engine } = await runSyntheticValidation(
+    { ...agent, prompt },
+    failingCriteria
+  );
+
+  res.json({
+    engine,
+    results: scenarios.map((s, i) => ({
+      scenario: s.scenario,
+      transcript: s.transcript,
+      criteria: failingCriteria.map((c) => ({
+        id: c.id,
+        label: c.label,
+        severity: c.severity,
+        actual: evaluations[i].actual[c.id],
+        pass: evaluations[i].actual[c.id] === 'pass',
+      })),
+    })),
+  });
 }));

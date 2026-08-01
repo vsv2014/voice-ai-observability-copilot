@@ -60,4 +60,26 @@ export const api = {
     }
     return { static: true };
   },
+
+  savePrompt: async (agentId, prompt) => {
+    const r = await fetch(`/api/agents/${enc(agentId)}/prompt`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `${r.status} ${r.statusText}`);
+    return data;
+  },
+
+  testPrompt: async (agentId, prompt) => {
+    const r = await fetch(`/api/agents/${enc(agentId)}/test-prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `${r.status} ${r.statusText}`);
+    return data;
+  },
 };

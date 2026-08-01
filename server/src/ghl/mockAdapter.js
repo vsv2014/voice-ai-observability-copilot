@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -39,6 +39,19 @@ export class MockAdapter {
 
   async getTranscript(callId) {
     return this.transcripts[callId] || null;
+  }
+
+  /** Update an agent's prompt in memory (and on disk when writable). */
+  async updateAgentPrompt(agentId, prompt) {
+    const agent = this.agents.find((a) => a.id === agentId);
+    if (!agent) return null;
+    agent.prompt = prompt;
+    try {
+      writeFileSync(join(DATA_DIR, 'agents.json'), JSON.stringify(this.agents, null, 2));
+    } catch (err) {
+      console.warn(`[mock] could not persist agents.json (${err.message}); in-memory only.`);
+    }
+    return agent;
   }
 }
 

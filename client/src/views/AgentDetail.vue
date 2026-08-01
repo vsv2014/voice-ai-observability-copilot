@@ -4,21 +4,68 @@ import { api } from '../api.js';
 import { useLoader } from '../lib/useLoader.js';
 import ScoreBadge from '../components/ScoreBadge.vue';
 import GateNote from '../components/GateNote.vue';
+import PromptTestResult from '../components/PromptTestResult.vue';
 
 const props = defineProps({ id: String });
 const detail = ref(null);
 const calls = ref([]);
+const draftPrompt = ref('');
+const savedPrompt = ref('');
+const testResult = ref(null);
+const testing = ref(false);
+const saving = ref(false);
+const configError = ref('');
+const configNotice = ref('');
 const { loading, error, run } = useLoader();
 
 watch(
   () => props.id,
   async (id) => {
     detail.value = null;
+    testResult.value = null;
+    configError.value = '';
+    configNotice.value = '';
     const res = await run(() => Promise.all([api.agent(id), api.agentCalls(id)]));
-    if (res) [detail.value, calls.value] = res;
+    if (res) {
+      [detail.value, calls.value] = res;
+      draftPrompt.value = detail.value.agent.prompt || '';
+      savedPrompt.value = draftPrompt.value;
+    }
   },
   { immediate: true }
 );
+
+const promptDirty = computed(() => draftPrompt.value !== savedPrompt.value);
+
+async function savePrompt() {
+  configError.value = '';
+  configNotice.value = '';
+  saving.value = true;
+  try {
+    const res = await api.savePrompt(props.id, draftPrompt.value);
+    savedPrompt.value = draftPrompt.value;
+    if (detail.value) detail.value.agent.prompt = res.agent?.prompt ?? draftPrompt.value;
+    configNotice.value = 'Prompt saved.';
+  } catch (e) {
+    configError.value = e?.message || String(e);
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function testPrompt() {
+  configError.value = '';
+  configNotice.value = '';
+  testing.value = true;
+  testResult.value = null;
+  try {
+    testResult.value = await api.testPrompt(props.id, draftPrompt.value);
+  } catch (e) {
+    configError.value = e?.message || String(e);
+  } finally {
+    testing.value = false;
+  }
+}
 
 // The KPI list shown on the page = every criterion for this agent.
 // The API only returns the FAILING ones (with a failRate); we append the
@@ -72,6 +119,33 @@ const barColor = (rate) => (rate >= 50 ? 'var(--bad)' : rate >= 20 ? 'var(--warn
         <div class="value">{{ detail.summary.callsScored }}</div>
         <div class="sub">{{ detail.summary.highSeverityOpen }} high-severity open · {{ detail.recommendations.length }} recommendations</div>
       </div>
+    </div>
+
+    <!-- Prompt config + synthetic test -->
+    <h2 class="section">Agent prompt</h2>
+    <div class="card">
+      <p class="muted" style="margin:0 0 10px">
+        Edit the prompt below, then test against failing KPIs before saving.
+      </p>
+      <textarea
+        v-model="draftPrompt"
+        class="prompt-editor"
+        rows="8"
+        spellcheck="false"
+        placeholder="Agent system prompt / script…"
+      ></textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" :disabled="testing || !draftPrompt.trim()" @click="testPrompt">
+          {{ testing ? 'Testing…' : 'Test prompt' }}
+        </button>
+        <button class="btn primary" :disabled="saving || !promptDirty" @click="savePrompt">
+          {{ saving ? 'Saving…' : 'Save' }}
+        </button>
+        <span v-if="promptDirty" class="muted" style="font-size:12px">Unsaved changes</span>
+      </div>
+      <div v-if="configError" class="gate-note" style="margin-top:12px">{{ configError }}</div>
+      <div v-if="configNotice" class="muted" style="margin-top:8px">{{ configNotice }}</div>
+      <PromptTestResult :test-result="testResult" />
     </div>
 
     <!-- Criteria / KPI performance -->
