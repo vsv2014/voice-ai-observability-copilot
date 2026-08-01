@@ -44,6 +44,10 @@ Two loops, exactly as the brief frames them:
    is wrong" to "here is the line" in two clicks.
 4. **Recommendations close the loop.** The AI proposes a concrete prompt/script change and
    shows *which failing calls it would have fixed* — the "flywheel" framing.
+5. **A fix can be validated before it ships.** The gap in every "here's a suggested prompt
+   edit" product is that you only learn whether the edit worked days later, from live
+   traffic. **Test prompt** runs the *unsaved draft* against generated adversarial calls and
+   scores them with the production scorer, so the flywheel turns in seconds instead of days.
 
 ## 3. System architecture
 
@@ -69,6 +73,7 @@ Two loops, exactly as the brief frames them:
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │         ▲                                                                   │
 │  REST ── /api/agents /api/calls /api/analyze /api/recommendations          │
+│          /api/agents/:id/test-prompt (score a draft prompt, unsaved)       │
 └────────────────────────────────────────────────────────────────────────── ┘
 ```
 
@@ -103,6 +108,30 @@ The engine has two layers behind one `analyzeCall(call, criteria)` interface:
 Both emit the **same structured `Finding` / `Recommendation` shape**, so the UI and
 the "flywheel" logic don't care which produced them.
 
+### Key design decision: **synthetic validation reuses the production scorer**
+
+`analysis/synthetic.js` closes the flywheel by testing a prompt *before* it is saved. The
+temptation here is to let the LLM both write the test calls **and** grade them — which
+produces a marking scheme that agrees with itself and drifts from what the dashboard
+reports. Instead the responsibilities are split:
+
+- the **LLM only authors transcripts** (4–6 short calls, at least one adversarial scenario
+  per failing criterion, built from the agent's goal and the *draft* prompt);
+- **`deterministic.js` grades them, unchanged** — the same `analyzeCallDeterministic()`
+  that scores real calls, so a "pass" in the test panel means exactly what a pass means on
+  the call detail page.
+
+That constraint drove the only mapping in the module: the model emits
+`{ speaker, text }`, so `asDeterministicTranscript()` renames `speaker` → `role` and hands
+over the `Transcript.turns` shape the scorer already consumes. **No new normalization
+path** was added, because a second transcript shape is a second thing to keep correct.
+
+Two smaller decisions follow from running on free tiers: Groq's JSON mode cannot return a
+bare array, so the contract is `{"scenarios":[…]}` and the parser accepts either that or a
+plain array; and with **no key at all** the generator falls back to keyword-templated
+scenarios so the loop is still demonstrable — with the UI stating that the draft was not
+really exercised, rather than implying a prompt-aware test happened.
+
 ## 4. Data model (mirrors real GHL shapes — see §6)
 
 - **VoiceAgent** — id, name, goal, script/prompt, KPIs/criteria.
@@ -114,6 +143,9 @@ the "flywheel" logic don't care which produced them.
   evidence, explanation.
 - **Recommendation** — agentId, target (`prompt`|`script`|`config`), rationale,
   suggestedChange, affectedCallIds (the flywheel proof).
+- **SyntheticScenario** — scenario (one-line description), expected
+  (`criterionId → pass|fail`), transcript[] `{ speaker: 'agent'|'customer', text }`.
+  Generated, never persisted; mapped onto **Transcript** before scoring.
 
 ## 5. Team-of-One ownership (how one person covers 4 hats)
 
@@ -124,9 +156,11 @@ the "flywheel" logic don't care which produced them.
 - **Engineering** — adapter + engine interfaces isolate the two risky externalities (GHL
   API access, paid LLM keys) so neither blocks a working build.
 - **QA** — mock dataset is authored to include known-good, known-bad, and edge cases;
-  deterministic analyzer and the metrics rollups are unit-tested (`server/test/`, 43 tests)
-  with fixed expected findings (no LLM flakiness); `server/src/smoke.js` exercises the full
-  pipeline headless.
+  deterministic analyzer and the metrics rollups are unit-tested (`server/test/`, 50 tests)
+  with fixed expected findings (no LLM flakiness); the synthetic generator is tested against
+  a **mocked `complete()`**, which keeps the suite offline and deterministic while still
+  verifying the JSON contract and the hand-off into the scorer;
+  `server/src/smoke.js` exercises the full pipeline headless.
 
 ### Key design decision: the **severity gate applies at every level**
 
@@ -147,6 +181,8 @@ for trends, and the agent table sorts compliance violations above merely-low sco
 | Criteria engine | Real, works on any transcript; editable via `PUT /api/agents/:id/criteria` | unchanged |
 | Deterministic analysis | Real | unchanged |
 | LLM analysis | Real when a free key is set | swap model/provider |
+| Synthetic prompt testing | Real scoring; scenarios LLM-authored with a key, templated without | unchanged |
+| Persisting an edited prompt | Mock dataset only — `PUT /api/agents/:id/prompt` is 501 in live mode | needs a verified Voice AI agent-update endpoint |
 | Embedding in GHL | Custom Page iframe + SSO handshake stub | register marketplace app |
 
 *Field-level payload shapes, endpoint paths, `Version` headers, scopes, and rate limits

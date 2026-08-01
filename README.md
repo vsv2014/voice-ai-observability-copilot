@@ -28,6 +28,9 @@ the agent's prompt/script — the **Validation Flywheel**.
 - **Analyze** — a unified dashboard (account → agent → call), AI-generated
   recommendations for prompt/script fixes, and **Use Actions**: the exact call
   segments needing a human, ranked by severity.
+- **Validate before you ship** — a recommended prompt edit can be tested against
+  generated adversarial calls *before* it is saved, so the loop closes without
+  waiting for the next batch of real traffic.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design and
 [`docs/GHL-API.md`](docs/GHL-API.md) for the verified HighLevel API grounding.
@@ -80,8 +83,9 @@ GEMINI_API_KEY=<free key from https://aistudio.google.com/apikey>
 # GROQ_API_KEY=<free key from https://console.groq.com/keys>
 ```
 With no key, the **deterministic** analyzer runs (rule-based, fully functional).
-With a key, the LLM writes richer recommendations. Both emit the same shapes, so
-the UI is identical either way. The active engine is shown in the app footer.
+With a key, the LLM writes richer recommendations *and* authors the synthetic test
+calls used by **Test prompt** (see below). Both emit the same shapes, so the UI is
+identical either way. The active engine is shown in the app footer.
 
 ### Installing inside a HighLevel sandbox (Custom Page)
 1. Create a Marketplace app (sandbox) at the HighLevel Marketplace.
@@ -104,6 +108,8 @@ the UI is identical either way. The active engine is shown in the app footer.
 | Deterministic analysis + scoring | ✅ Real | unchanged |
 | LLM recommendations | ✅ Real **when a free key is set**; deterministic fallback otherwise | swap provider/model |
 | Dashboard, drill-down, Use Actions | ✅ Real | unchanged |
+| Synthetic prompt testing | ✅ Real scoring — scenarios are LLM-authored with a key, keyword-templated without one (the panel says which) | unchanged; quality tracks the model |
+| Saving an edited prompt | ⚙️ **Mock mode only** — `PUT /api/agents/:id/prompt` writes to the local dataset and returns 501 in live mode | needs a verified HighLevel agent-update endpoint (see `docs/GHL-API.md`) |
 | Real-time updates | ⚙️ Not built — re-analysis is triggered by `POST /api/analyze` | GHL `OutboundMessage` webhook → same pipeline |
 | GHL embed / SSO | ⚙️ Client handshake implemented; server-side decrypt **stubbed** | add Shared Secret + `/decrypt` route |
 | Live-endpoint field mapping | ⚠️ Transcript-segment schema is **reconstructed** (GHL docs don't expose it) | verify against a live response — isolated in `normalizeTranscript()` |
@@ -131,16 +137,41 @@ Nothing is faked silently: the app footer and this table state exactly what's li
    `pass | fail | missed` with severity, the exact turn, and an evidence quote.
    Score = weighted % of criteria passed, or `null` ("not scored") when an agent has no
    scorable criteria.
-4. **Severity gating** (`server/src/analysis/severity.js`) — a failed `critical`
+3. **Severity gating** (`server/src/analysis/severity.js`) — a failed `critical`
    criterion caps the score at 39 and a failed `high` at 69, applied at **call, agent and
    account level**, so a compliance violation can never be averaged into a healthy-looking
    number. The ungated mean is kept alongside (`rawScore` / `rawAvgScore`) for trends.
    Editing criteria re-scores that agent immediately, so findings and recommendations can
    never refer to criteria that no longer exist.
-3. **Recommendations** (`server/src/analysis/recommend.js`) — failures are
+4. **Recommendations** (`server/src/analysis/recommend.js`) — failures are
    aggregated per agent; the engine proposes a concrete prompt/script edit and
    lists **which calls it would have fixed** (the flywheel payoff). LLM-authored
    when a key is present, templated otherwise.
+5. **Synthetic validation** (`server/src/analysis/synthetic.js`) — generates adversarial
+   test calls for a *draft* prompt and scores them with the same engine, so a suggested
+   fix can be checked before it is saved (detailed next).
+
+### Testing a prompt before you save it
+
+A recommendation tells you what to change. **Test prompt**, on the agent page next to
+**Save**, tells you whether the rewrite actually works — without waiting for the next
+batch of real calls.
+
+It sends the **unsaved draft**, so you are testing exactly what you are about to save.
+The backend asks the LLM for 4–6 short customer/agent transcripts built from the agent's
+goal and that draft prompt, with **at least one adversarial scenario per failing
+criterion** (a customer who pushes for a guarantee, one who never confirms, and so on).
+Each generated call is then scored by the **same `deterministic.js` engine that scores
+real calls** — no second scoring path to keep in sync — and the panel below the button
+shows every transcript with a pass/fail row per criterion.
+
+With no LLM key the scenarios are keyword-templated instead of prompt-aware; the panel
+says so rather than implying the draft was really exercised.
+
+```
+POST /api/agents/:id/test-prompt   { prompt }   → transcripts + pass/fail per criterion
+PUT  /api/agents/:id/prompt        { prompt }   → persist (mock mode only)
+```
 
 ---
 
@@ -156,10 +187,12 @@ Nothing is faked silently: the app footer and this table state exactly what's li
   behind adapter interfaces so neither can block a working, demoable build.
 - **QA** — the mock dataset is authored with known good/fail/missed/compliance
   cases; the deterministic analyzer is verifiable against them. Unit tests
-  (`cd server && npm test`, 43 tests in `server/test/`) cover the detector edge cases
+  (`cd server && npm test`, 50 tests in `server/test/`) cover the detector edge cases
   — negation and its clause scope, word boundaries, repeat occurrences, questions vs.
   confirmations, declines, weighted scoring, the null-score sentinel, and the severity
-  gate at call / agent / account level. And
+  gate at call / agent / account level. The synthetic generator is tested against a
+  **mocked `complete()`**, so the JSON contract and the hand-off into `deterministic.js`
+  are verified without spending a token or depending on model output. And
   `server/src/smoke.js` runs the whole pipeline headless (`node src/smoke.js`),
   printing scores, Use Actions, and recommendations for a fast end-to-end check.
 
@@ -171,13 +204,15 @@ Nothing is faked silently: the app footer and this table state exactly what's li
 server/                      Node/Express backend
   src/ghl/                   Adapter interface + MockAdapter + LiveAdapter (real endpoints)
   src/analysis/              criteria · deterministic scorer · recommend · metrics
+                             synthetic (prompt test scenarios) · severity (score gate)
                              validate (criteria input) · status (shared predicates) · llm/ (providers)
   src/routes/api.js          REST API
   src/smoke.js               headless end-to-end pipeline check
   data/                      mock agents, calls, transcripts (GHL-shaped)
-  test/                      unit tests (detector edge cases)
+  test/                      unit tests (detector edge cases, synthetic contract)
 client/                      Vue 3 + Vite dashboard (embeddable in GHL)
-  src/views/                 Overview · AgentDetail · CallDetail
+  src/views/                 Overview · AgentDetail (incl. prompt editor) · CallDetail
+  src/components/            ScoreBadge · GateNote · PromptTestResult
   src/lib/ghlContext.js      GHL Custom Page SSO handshake
   src/lib/useLoader.js       async loader: request-race guard + error state
 docs/                        ARCHITECTURE.md · GHL-API.md

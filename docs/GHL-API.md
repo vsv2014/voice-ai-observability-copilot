@@ -39,6 +39,13 @@ live response before hardcoding.
 - **Actions/goals:** CRUD under the agent; scopes `voice-ai-agent-goals.*`.
 - Agent object carries prompt/voice/goal config. *Field-by-field schema not
   exposed verbatim → reconstructed in `normalizeAgent()`.*
+- **Updating an agent's prompt:** no write endpoint or write scope was confirmed in
+  this grounding pass (the observability scope set above is read-only). The app's
+  prompt editor therefore saves to the **mock dataset only** —
+  `PUT /api/agents/:id/prompt` returns **501** when `GHL_MODE=live`. Testing a draft
+  prompt needs no write access at all and works in either mode. To go live, confirm
+  the agent-update route and its scope, then implement `updateAgentPrompt()` on
+  `LiveAdapter` — nothing else changes.
 
 ## Calls + transcripts
 - **List call logs:** `GET /voice-ai/dashboard/call-logs` — `Version: v3`. Filter
