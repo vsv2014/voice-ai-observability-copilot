@@ -9,6 +9,10 @@ services:
     buildCommand: "cd client && npm install && npm run build && cd ../server && npm install"
     startCommand: "cd server && node src/index.js"
     envVars:
+      # Pinned: neither package.json declares `engines`, and the Vite 5 build needs
+      # Node 18+. Without this the build depends on whatever Render defaults to.
+      - key: NODE_VERSION
+        value: "20"
       - key: GHL_MODE
         value: mock
       - key: LLM_PROVIDER
